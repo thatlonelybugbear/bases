@@ -1,6 +1,6 @@
 {
 	"BASES": {
-		"EnableStatusHUDSorting": {
+		"AssignStatusHUDSorting": {
 			"Switch": {
 				"Name": "Enable Status HUD Sorting",
 				"Hint": "When enabled, the status effects labels will also be shown and an opinionated sorting will take place"
@@ -17,6 +17,7 @@
 				"Name": "Number of columns",
 				"Hint": "Divide the HUD status effects into this number of columns"
 			}
-		}
+		},
+		"IncompatibleSystemError": "Bugbear's Assign Status Effects Sorter is not compatible with your system and the Assign Status Effects HUD changes have been disabled. Disabling the module is recommended!"
 	}
 }
