@@ -258,7 +258,7 @@ function basesReady() {
 	ensureHudStyle();
 	applyHudGridSettings(); // apply saved values
 	if (game.system.id === 'draw-steel') {
-		ui.notifications.error('BASES.IncompatibleSystemError');
+		ui.notifications.error(game.i18n.localize('BASES.IncompatibleSystemError'));
 		game.settings.set(Constants.MODULE_ID, 'hudEnabled', false);
 	}
 }
