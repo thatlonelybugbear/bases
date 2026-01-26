@@ -35,10 +35,13 @@ function ensureHudStyle() {
         #token-hud.bases-hud-enabled .status-effects .effect-control {
             display: flex;
             width: auto;
+			overflow: hidden;
         }
         #token-hud.bases-hud-enabled .status-effects .effect-control p {
             margin-left: 5px;
             font-size: x-large;
+			mid-width: 0;
+			max-width: 100%;
 			overflow: hidden;
 			white-space: nowrap;
 			text-overflow: ellipsis;
@@ -210,7 +213,7 @@ function rebuildStatusEffects({ app, container, enabled }) {
 			const p = wrapper.querySelector('p');
 			if (!p) continue;
 
-			const truncated = p.scrollWidth > p.clientWidth + 1;
+			const truncated = p.scrollWidth > 145; // to-do: why p.scrollWidth > p.clientWidth + 1 is inconsistent?
 			if (truncated) wrapper.dataset.tooltipText = p.textContent?.trim() ?? '';
 			else wrapper.removeAttribute('data-tooltip-text'); // keep it clean
 		}
@@ -254,6 +257,10 @@ function basesReady() {
 	globalThis.bases = { info: { version: game.modules.get(Constants.MODULE_ID).version } };
 	ensureHudStyle();
 	applyHudGridSettings(); // apply saved values
+	if (game.system.id === 'draw-steel') {
+		ui.notifications.error('BASES.IncompatibleSystemError');
+		game.settings.set(Constants.MODULE_ID, 'hudEnabled', false);
+	}
 }
 
 function markBuilt(container, enabled) {
