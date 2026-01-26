@@ -18,10 +18,10 @@ function ensureHudStyle() {
 	const dnd5eOverrides =
 		game.system.id === 'dnd5e' ?
 			`
-		#token-hud.bases-hud-enabled .status-effects .effect-control[data-status-id="exhaustion"] {
-			background: none !important;
-		}
-	`
+				#token-hud.bases-hud-enabled .status-effects .effect-control[data-status-id="exhaustion"] {
+					background: none !important;
+				}
+			`
 		:	'';
 	el.textContent = `
         #token-hud.bases-hud-enabled .status-effects {
