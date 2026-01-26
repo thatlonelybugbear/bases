@@ -7,7 +7,6 @@ Hooks.once('ready', basesReady);
 Hooks.on('renderSettingsConfig', statusesRenderSettingsConfigHook);
 Hooks.on('renderTokenHUD', statusesRenderTokenHUDHook);
 
-
 function ensureHudStyle() {
 	let el = document.getElementById(Constants.STYLE_ID);
 	if (!el) {
@@ -15,6 +14,15 @@ function ensureHudStyle() {
 		el.id = Constants.STYLE_ID;
 		document.head.appendChild(el);
 	}
+
+	const dnd5eOverrides =
+		game.system.id === 'dnd5e' ?
+			`
+		#token-hud.bases-hud-enabled .status-effects .effect-control[data-status-id="exhaustion"] {
+			background: none !important;
+		}
+	`
+		:	'';
 	el.textContent = `
         #token-hud.bases-hud-enabled .status-effects {
             --effect-size: 48px;
@@ -31,7 +39,12 @@ function ensureHudStyle() {
         #token-hud.bases-hud-enabled .status-effects .effect-control p {
             margin-left: 5px;
             font-size: x-large;
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			pointer-events: none;
         }
+		${dnd5eOverrides}
     `;
 }
 
@@ -56,7 +69,7 @@ function applyHudGridSettings({ mode, cols } = {}) {
 	}
 }
 
-function compareStatuses(aEl, bEl) {
+function compareStatusKeys(aEl, bEl) {
 	const displayLabel = (raw = '') => raw.replace('Three-Quarters', '3/4').replace('Half', '1/2');
 	const sortKey = (raw = '') => displayLabel(raw).trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -69,8 +82,8 @@ function compareStatuses(aEl, bEl) {
 		return [1, 0];
 	};
 
-	const aKey = sortKey(aEl.dataset.tooltipText ?? aEl.dataset.tooltip ?? '');  // Fallback for other systems
-	const bKey = sortKey(bEl.dataset.tooltipText ?? bEl.dataset.tooltip ?? '');  // Fallback for other systems
+	const aKey = sortKey(aEl.name); // Fallback for other systems
+	const bKey = sortKey(bEl.name); // Fallback for other systems
 
 	const [aGroup, aOrder] = rank(aKey);
 	const [bGroup, bOrder] = rank(bKey);
@@ -81,18 +94,34 @@ function compareStatuses(aEl, bEl) {
 	return aKey.localeCompare(bKey, undefined, { numeric: true });
 }
 
+function getSortedStatusIds() {
+	globalThis.bases ??= {};
+	if (globalThis.bases.sortedStatusesIndex) return globalThis.bases.sortedStatusesIndex;
+
+	// Build once
+	const ids = CONFIG.statusEffects
+		.filter((s) => s.hud !== false)
+		.sort(compareStatusKeys)
+		.map((s) => s.id)
+		.filter(Boolean);
+	globalThis.bases.sortedStatusesIndex = ids;
+
+	return ids;
+}
+
 function getEffectSrc({ app, img }) {
 	let src = img.src;
+	let level = false;
 
 	if (game.system.id === 'dnd5e' && img.dataset.statusId === 'exhaustion') {
 		const actor = app.object?.actor;
-		const level = foundry.utils.getProperty(actor, 'system.attributes.exhaustion');
+		level = foundry.utils.getProperty(actor, 'system.attributes.exhaustion');
 		if (Number.isFinite(level) && level > 0) {
 			src = dnd5e.documents.ActiveEffect5e._getExhaustionImage(level);
 		}
 	}
 
-	return src;
+	return { src, exhaustionLevel: level };
 }
 
 function onClickTokenHUD(event) {
@@ -112,16 +141,31 @@ function rebuildStatusEffects({ app, container, enabled }) {
 	const elements = Array.from(container.querySelectorAll('img.effect-control[data-action="effect"], img.effect-control'));
 	if (!elements.length) return;
 
-	// Map by statusId so we can put them in CONFIG order when disabled
+	const orderedIds = getSortedStatusIds();
+
 	const byId = new Map();
 	for (const el of elements) {
-        const id = el.dataset.statusId;
+		const id = el.dataset.statusId;
 		if (id) byId.set(id, el);
 	}
 
+	const opinionatedOrder = [];
+	const used = new Set();
+
+	for (const id of orderedIds) {
+		const el = byId.get(id);
+		if (!el) continue;
+		opinionatedOrder.push(el);
+		used.add(el);
+	}
+
+	// Could there be unknown effects?
+	for (const el of elements) {
+		if (!used.has(el)) opinionatedOrder.push(el);
+	}
 	const ordered =
 		enabled ?
-			elements.slice().sort(compareStatuses) // enabled: Ranked sort
+			opinionatedOrder // enabled: Ranked sort
 		:	orderByConfig(elements, byId); // disabled: CONFIG.statusEffects order
 
 	container.replaceChildren();
@@ -138,36 +182,53 @@ function rebuildStatusEffects({ app, container, enabled }) {
 	// Enabled: wrapper with <img> + <p>
 	for (const img of ordered) {
 		const wrapper = document.createElement('div');
+		wrapper.classList.add('effect-control');
+		if (img.classList.contains('active')) wrapper.classList.add('active');
+
 		wrapper.classList.add(...img.classList);
 		wrapper.dataset.action = img.dataset.action;
 		wrapper.dataset.statusId = img.dataset.statusId;
 
+		const { src, exhaustionLevel } = getEffectSrc({ app, img }) || {};
+
 		const icon = document.createElement('img');
-		icon.src = getEffectSrc({ app, img });
+		icon.src = src;
 		icon.alt = '';
 
-		const label = document.createElement('p');
-		label.textContent = (img.dataset.tooltipText ?? img.dataset.tooltip ?? '').replace('Three-Quarters', '3/4').replace('Half', '1/2'); // Fallback for other systems
+		const text = (img.dataset.tooltipText ?? img.dataset.tooltip ?? '').replace('Three-Quarters', '3/4').replace('Half', '1/2');
 
+		const label = document.createElement('p');
+		label.textContent = text; // Fallback for other systems
+		if (exhaustionLevel) label.textContent += ` ${exhaustionLevel}`;
 		wrapper.append(icon, label);
 		frag.appendChild(wrapper);
 	}
 
 	container.appendChild(frag);
+	requestAnimationFrame(() => {
+		for (const wrapper of container.querySelectorAll('div.effect-control')) {
+			const p = wrapper.querySelector('p');
+			if (!p) continue;
+
+			const truncated = p.scrollWidth > p.clientWidth + 1;
+			if (truncated) wrapper.dataset.tooltipText = p.textContent?.trim() ?? '';
+			else wrapper.removeAttribute('data-tooltip-text'); // keep it clean
+		}
+	});
 }
 
 function updateOpenTokenHUDIfAny() {
 	const hudApp = canvas.hud.token;
 	const el = hudApp?.element;
 	if (!el) return;
-	
+
 	const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
 	const hud = el.querySelector('.status-effects') ?? el;
-	hud.classList.toggle('bases-hud-enabled', enabled);           // Toggle CSS scope class immediately
+	hud.classList.toggle('bases-hud-enabled', enabled); // Toggle CSS scope class immediately
 	const container = el.querySelector('#token-hud .status-effects');
 	if (!container) return;
-  
-	rebuildStatusEffects({ app: hudApp, container, enabled });   // Rebuild contents immediately (no re-render)
+
+	rebuildStatusEffects({ app: hudApp, container, enabled }); // Rebuild contents immediately (no re-render)
 }
 
 export function statusesApplySettings() {
@@ -190,9 +251,10 @@ function shouldRebuildOnce(container, enabled) {
 }
 
 function basesReady() {
+	globalThis.bases = { info: { version: game.modules.get(Constants.MODULE_ID).version } };
 	ensureHudStyle();
 	applyHudGridSettings(); // apply saved values
-};
+}
 
 function markBuilt(container, enabled) {
 	container.dataset.basesBuilt = enabled ? 'on' : 'off';
@@ -242,7 +304,7 @@ function statusesRenderSettingsConfigHook(app, html) {
 
 	setVisibility(game.settings.get(Constants.MODULE_ID, 'hudEnabled')); //initial
 
-	/* This is here be included if at some point there are more settings and we need 
+	/* This is here be included if at some point there are more settings and we need
 	 * to have a way to listen to the hudEnabled setting too
 	 * enabledInput.addEventListener('change', async () => {
 	 *	  const isOn = enabledInput;
@@ -251,14 +313,14 @@ function statusesRenderSettingsConfigHook(app, html) {
 	 *    canvas.hud?.token?.render?.();
 	 * });
 	 */
-	
+
 	modeSel?.addEventListener('change', async () => {
 		if (!enabledInput) return;
 		await setIfChanged('hudFlowMode', modeSel.value);
 	});
 	const saveCols = foundry.utils.debounce(async () => {
 		if (!enabledInput) return;
-        const cols = Number(colsPicker?.value);
+		const cols = Number(colsPicker?.value);
 		await setIfChanged('hudColumns', cols);
 	}, 50);
 
@@ -278,7 +340,8 @@ export function statusesRenderTokenHUDHook(app, html) {
 	rebuildStatusEffects({ app, container, enabled });
 	markBuilt(container, enabled);
 
-	if (game.system.id === 'dnd5e') { // && !html.dataset.basesHudBound) {
+	if (game.system.id === 'dnd5e') {
+		// && !html.dataset.basesHudBound) {
 		// html.dataset.basesHudBound = '1';
 		html.addEventListener('click', onClickTokenHUD, { capture: true });
 		html.addEventListener('contextmenu', onClickTokenHUD, { capture: true });
