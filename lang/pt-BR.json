@@ -1,0 +1,23 @@
+{
+	"BASES": {
+		"AssignStatusHUDSorting": {
+			"Switch": {
+				"Name": "Ativar Classificação de Status da HUD",
+				"Hint": "Quando ativado, as etiquetas de efeitos de status também serão exibidas e uma classificação será aplicada."
+			},
+			"SortingType": {
+				"Name": "Classificação de Efeitos de Status",
+				"Hint": "Preencher por linhas (esquerda → direita) ou por colunas (superior → inferior).",
+				"Choices": {
+					"Rows": "Linhas",
+					"Columns": "Colunas"
+				}
+			},
+			"NumberColumns": {
+				"Name": "Número de Colunas",
+				"Hint": "Divida os efeitos de status da HUD nesse número de colunas."
+			}
+		},
+		"IncompatibleSystemError": "Bugbear's Assign Status Effects Sorter não é compatível com o seu sistema e as alterações na HUD de efeitos de status foram desativadas. Recomenda-se desativar o módulo!"
+	}
+}
