@@ -16,6 +16,12 @@
 			"NumberColumns": {
 				"Name": "Number of columns",
 				"Hint": "Divide the HUD status effects into this number of columns"
+			},
+			"Filter": {
+				"Name": "Enable status filter",
+				"Hint": "Show a search field above status effects to filter by name or status id",
+				"Placeholder": "Filter effects",
+				"Clear": "Clear"
 			}
 		},
 		"IncompatibleSystemError": "Bugbear's Assign Status Effects Sorter is not compatible with your system and the Assign Status Effects HUD changes have been disabled. Disabling the module is recommended!"

@@ -1,0 +1,67 @@
+#token-hud.bases-hud-enabled .status-effects {
+	--effect-size: 48px;
+	display: grid;
+	align-content: start;
+	overflow: visible;
+	max-height: none;
+	height: auto;
+	grid-auto-flow: var(--bases-grid-auto-flow, row);
+	grid-template-rows: var(--bases-grid-template-rows, none);
+	grid-template-columns: var(--bases-grid-template-columns, none);
+}
+
+#hud,
+#token-hud.bases-hud-enabled,
+#token-hud.bases-hud-enabled .window-content,
+#token-hud.bases-hud-enabled .hud,
+#token-hud.bases-hud-enabled .col,
+#token-hud.bases-hud-enabled .palette,
+#token-hud.bases-hud-enabled .palette.status-effects,
+#token-hud.bases-hud-enabled .palette.status-effects.active {
+	height: auto !important;
+	max-height: none !important;
+	overflow: visible !important;
+}
+
+#token-hud.bases-hud-enabled .status-effects .effect-control {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start !important;
+	gap: 6px;
+	width: auto;
+	min-width: 0;
+	overflow: visible;
+	justify-self: stretch;
+	text-align: left;
+}
+
+#token-hud.bases-hud-enabled .status-effects > * {
+	justify-self: stretch;
+}
+
+#token-hud.bases-hud-enabled .status-effects .status-wrapper.effect-control {
+	padding-right: 4px;
+}
+
+#token-hud.bases-hud-enabled .status-effects .effect-control > img {
+	flex: 0 0 var(--effect-size);
+	width: var(--effect-size);
+	height: var(--effect-size);
+	object-fit: contain;
+}
+
+#token-hud.bases-hud-enabled .status-effects .effect-control > p.bases-label {
+	margin-left: 5px;
+	font-size: x-large;
+	flex: 1 1 auto;
+	min-width: 0;
+	text-align: left;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
+#token-hud.bases-hud-enabled .status-effects .bases-hidden {
+	display: none !important;
+}

@@ -35,4 +35,14 @@ export function registerSettings() {
 		}),
 		onChange: statusesApplySettings,
 	});
+
+	game.settings.register(Constants.MODULE_ID, 'hudFilterEnabled', {
+		name: 'BASES.AssignStatusHUDSorting.Filter.Name',
+		hint: 'BASES.AssignStatusHUDSorting.Filter.Hint',
+		scope: 'user',
+		config: true,
+		type: new foundry.data.fields.BooleanField({ initial: true }),
+		default: true,
+		onChange: statusesApplySettings,
+	});
 }

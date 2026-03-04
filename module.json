@@ -16,6 +16,11 @@
     }
   ],
   "esmodules": ["scripts/bases-main.mjs"],
+  "styles": [
+    "styles/bases-status-layout.css",
+    "styles/bases-status-filter.css",
+    "styles/bases-status-system-overrides.css"
+  ],
   "languages": [
     {
       "lang": "en",
@@ -25,7 +30,12 @@
   ],
   "flags": {
     "hotReload": {
-      "paths": ["lang/en.json"]
+      "paths": [
+        "lang/en.json",
+        "styles/bases-status-layout.css",
+        "styles/bases-status-filter.css",
+        "styles/bases-status-system-overrides.css"
+      ]
     }
   },
   "bugs": "https://github.com/thatlonelybugbear/bases/issues",

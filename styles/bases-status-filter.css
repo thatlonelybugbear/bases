@@ -1,0 +1,22 @@
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter {
+	display: flex;
+	grid-column: 1 / -1;
+	gap: 8px;
+	align-items: center;
+	margin: 2px 0 8px;
+	padding: 0;
+	border: 0;
+}
+
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter input[type='text'] {
+	width: 100%;
+	flex: auto;
+	font-size: x-large;
+	padding: 6px 8px;
+}
+
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter button.bases-filter-clear {
+	font-size: large;
+	flex: 0 0 auto;
+	padding: 0 10px;
+}
