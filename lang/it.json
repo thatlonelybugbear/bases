@@ -1,0 +1,23 @@
+{
+	"BASES": {
+		"AssignStatusHUDSorting": {
+			"Switch": {
+				"Name": "Abilita ordinamento HUD degli stati",
+				"Hint": "Quando abilitato, verranno mostrate anche le etichette degli effetti di stato e verrà applicato un ordinamento predefinito"
+			},
+			"SortingType": {
+				"Name": "Ordinamento effetti di stato",
+				"Hint": "Riempi per righe (sinistra → destra) o per colonne (alto → basso)",
+				"Choices": {
+					"Rows": "Righe",
+					"Columns": "Colonne"
+				}
+			},
+			"NumberColumns": {
+				"Name": "Numero di colonne",
+				"Hint": "Dividi gli effetti di stato dell'HUD in questo numero di colonne"
+			}
+		},
+		"IncompatibleSystemError": "Bugbear's Assign Status Effects Sorter non è compatibile con il tuo sistema e le modifiche all'HUD degli effetti di stato sono state disabilitate. Si consiglia di disattivare il modulo!"
+	}
+}
