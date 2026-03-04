@@ -307,9 +307,10 @@ function applyHudGridSettings({ mode, cols } = {}) {
 
 	mode ??= game.settings.get(Constants.MODULE_ID, 'hudFlowMode');
 	cols ??= Number(game.settings.get(Constants.MODULE_ID, 'hudColumns')) || 3;
+	const filterEnabled = game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled');
 
 	const statusLength = CONFIG.statusEffects.filter((s) => s.hud !== false).length;
-	const rows = Math.ceil(statusLength / cols);
+	const rows = Math.ceil(statusLength / cols) + (filterEnabled ? 1 : 0);
 
 	// columns are always defined
 	root.style.setProperty('--bases-grid-template-columns', `repeat(${cols}, minmax(160px, 1fr))`);
