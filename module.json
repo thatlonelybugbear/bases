@@ -2,7 +2,7 @@
   "id": "bases",
   "title": "Bugbear's Assign Status Effects Sorter",
   "description": "A system-agnostic Foundry VTT module that adds sorting and improves visibility in the Assign Status Effects HUD!",
-  "version": "13.351.3.2",
+  "version": "13.351.4",
   "compatibility": {
     "minimum": "13",
     "verified": "13.351"
@@ -52,6 +52,6 @@
   "url": "https://github.com/thatlonelybugbear/bases",
   "license": "https://raw.githubusercontent.com/thatlonelybugbear/bases/main/LICENSE",
   "manifest": "https://github.com/thatlonelybugbear/bases/releases/latest/download/module.json",
-  "download": "https://github.com/thatlonelybugbear/bases/releases/download/v13.351.3.2/module.zip",
+  "download": "https://github.com/thatlonelybugbear/bases/releases/download/v13.351.4/module.zip",
   "changelog": "https://raw.githubusercontent.com/thatlonelybugbear/bases/main/Changelog.md"
 }
