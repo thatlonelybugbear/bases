@@ -1,22 +1,38 @@
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter {
-	display: flex;
 	grid-column: 1 / -1;
-	gap: 8px;
-	align-items: center;
 	margin: 2px 0 8px;
 	padding: 0;
 	border: 0;
 }
 
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter .bases-filter-input-wrap {
+	position: relative;
+	width: 100%;
+}
+
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter input[type='text'] {
 	width: 100%;
-	flex: auto;
 	font-size: x-large;
-	padding: 6px 8px;
+	padding: 6px 28px 6px 8px;
 }
 
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter button.bases-filter-clear {
-	font-size: large;
-	flex: 0 0 auto;
-	padding: 0 10px;
+	position: absolute;
+	top: 50%;
+	right: 6px;
+	transform: translateY(-50%);
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.8;
+}
+
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter button.bases-filter-clear[hidden] {
+	display: none;
 }

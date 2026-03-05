@@ -1,3 +1,10 @@
+## v13.351.5 - 2026-03-05
+
+- Status HUD now supports module-injected temporary/custom effects in a system-agnostic way.
+- Filter keyboard flow now supports: `Enter` to trigger first visible match, `Escape` to clear, and `Escape` on empty input to close the effects palette.
+- Opening the effects palette now auto-focuses the filter input, and filtered effect toggles (Enter or mouse click/right-click) restore filter focus after re-render.
+- Filter clear control is now an inline `X` inside the input, shown only when text exists; clicking it clears the field and keeps focus for continued typing.
+
 ## v13.351.4 - 2026-03-04
 
 - Added Filter effects field for quick search

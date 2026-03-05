@@ -20,7 +20,7 @@
 			"Filter": {
 				"Name": "Enable status filter",
 				"Hint": "Show a search field above status effects to filter by name or status id",
-				"Placeholder": "Filter effects",
+				"Placeholder": "Filter effects...",
 				"Clear": "Clear"
 			}
 		},

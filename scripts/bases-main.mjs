@@ -5,11 +5,17 @@ Hooks.once('init', registerSettings);
 
 Hooks.once('ready', basesReady);
 
+let hudMutationObserver = null;
+let hudObservedHost = null;
+let pendingFilterRefocusUntil = 0;
+const FILTER_FOCUS_RETRY_MS = [0, 30, 90];
+
 function markHudSystemClass(hudRoot = document.querySelector('#token-hud')) {
 	if (!hudRoot) return;
 	hudRoot.dataset.basesSystem = game.system.id;
 }
 function findStatusPalette(root) {
+	if (!root) return null;
 	return root.querySelector('.palette.status-effects[data-palette="effects"]') ?? root.querySelector('#token-hud .status-effects') ?? root.querySelector('.status-effects');
 }
 
@@ -18,9 +24,88 @@ function getHost(palette) {
 	return palette.querySelector('.effect-pane') ?? palette;
 }
 
+function getStatusId(element) {
+	return element?.dataset?.statusId ?? element?.querySelector?.(':scope > [data-status-id]')?.dataset?.statusId ?? '';
+}
+
+function getEffectId(element) {
+	return element?.dataset?.effectId ?? element?.querySelector?.(':scope > [data-effect-id]')?.dataset?.effectId ?? '';
+}
+
+function getEffectUuid(element) {
+	return element?.dataset?.effectUuid ?? element?.querySelector?.(':scope > [data-effect-uuid]')?.dataset?.effectUuid ?? '';
+}
+
+function isHudStatusElement(element) {
+	if (!(element instanceof HTMLElement)) return false;
+	if (element.matches('fieldset.bases-filter')) return false;
+	if (getStatusId(element)) return true;
+	if (getEffectId(element)) return true;
+	if (getEffectUuid(element)) return true;
+	if (element.classList.contains('effect-control')) return true;
+	if (element.classList.contains('effect-group')) return true;
+	return Boolean(
+		element.querySelector?.(':scope > [data-status-id], :scope > [data-effect-id], :scope > [data-effect-uuid], :scope > .effect-control, :scope > img'),
+	);
+}
+
+function collectHudStatusElements(host) {
+	if (!host) return [];
+	return Array.from(host.children).filter(isHudStatusElement);
+}
+
+function getFirstVisibleHudEffect(host) {
+	return collectHudStatusElements(host).find((el) => !el.classList.contains('bases-hidden')) ?? null;
+}
+
+function focusFilterInput(palette = undefined) {
+	const openPalette = palette ?? findStatusPalette(canvas?.hud?.token?.element) ?? findStatusPalette(document.querySelector('#token-hud'));
+	const input =
+		openPalette?.querySelector?.(':scope > fieldset.bases-filter .bases-filter-input') ??
+		document.querySelector('#token-hud fieldset.bases-filter .bases-filter-input');
+	if (!input) return false;
+	input.focus({ preventScroll: true });
+	const end = input.value?.length ?? 0;
+	input.setSelectionRange?.(end, end);
+	return document.activeElement === input;
+}
+
+function hasActiveFilterValue() {
+	const openPalette = findStatusPalette(canvas?.hud?.token?.element) ?? findStatusPalette(document.querySelector('#token-hud'));
+	const input = openPalette?.querySelector?.(':scope > fieldset.bases-filter .bases-filter-input');
+	return Boolean(input?.value?.trim().length);
+}
+
+function queueFilterRefocusIfFiltering() {
+	if (!game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled')) return;
+	if (!hasActiveFilterValue()) return;
+	// Keep this short-lived so we do not steal focus on unrelated later renders.
+	pendingFilterRefocusUntil = Date.now() + 2000;
+}
+
+function closeStatusPaletteIfOpen() {
+	const hudElement = canvas?.hud?.token?.element ?? document.querySelector('#token-hud');
+	const btn = hudElement?.querySelector?.('button.control-icon[data-action="togglePalette"][data-palette="effects"]');
+	if (!btn?.classList?.contains('active')) return false;
+	btn.click();
+	return true;
+}
+
+function onClickStatusPaletteToggle(event) {
+	const btn = event.target?.closest?.('button.control-icon[data-action="togglePalette"][data-palette="effects"]');
+	if (!btn) return;
+	for (const delay of FILTER_FOCUS_RETRY_MS) {
+		setTimeout(() => {
+			focusFilterInput();
+		}, delay);
+	}
+}
+
 function collectStatusElements(palette) {
 	const host = getHost(palette);
-	const sourceNodes = Array.from(host.querySelectorAll('[data-status-id]'));
+	const sourceNodes = Array.from(
+		host.querySelectorAll('[data-status-id], [data-effect-id], [data-effect-uuid], .effect-control, img.effect-control'),
+	);
 	const lifted = new Map();
 
 	const liftToHostChild = (el) => {
@@ -37,31 +122,41 @@ function collectStatusElements(palette) {
 	for (const src of sourceNodes) {
 		const node = liftToHostChild(src);
 		if (!node) continue;
-		if (!lifted.has(node)) lifted.set(node, src);
+		if (!lifted.has(node)) {
+			lifted.set(node, src);
+			continue;
+		}
+		const existing = lifted.get(node);
+		const score = (element) => Number(Boolean(getStatusId(element))) + Number(Boolean(getEffectId(element))) + Number(Boolean(getEffectUuid(element)));
+		if (score(src) > score(existing)) lifted.set(node, src);
 	}
 
 	const candidates = Array.from(lifted.keys());
 	for (const el of candidates) {
 		const src = lifted.get(el);
-		if (!el.dataset.statusId && src?.dataset?.statusId) el.dataset.statusId = src.dataset.statusId;
-		if (!el.dataset.action) el.dataset.action = src?.dataset?.action || 'effect';
+		const statusId = getStatusId(src);
+		const effectId = getEffectId(src);
+		const effectUuid = getEffectUuid(src);
+		if (!el.dataset.statusId && statusId) el.dataset.statusId = statusId;
+		if (!el.dataset.effectId && effectId) el.dataset.effectId = effectId;
+		if (!el.dataset.effectUuid && effectUuid) el.dataset.effectUuid = effectUuid;
+		if ((statusId || effectId || effectUuid) && !el.dataset.action) el.dataset.action = src?.dataset?.action || 'effect';
 		if (!el.dataset.basesSourceLabel) {
 			const sourceLabel = getLabel(src);
 			if (sourceLabel) el.dataset.basesSourceLabel = sourceLabel;
 		}
 		// Enable full-row click target for wrapper-based systems (e.g., DC20 status-wrapper).
 		if (!el.classList.contains('effect-control')) {
-			const hasNestedControl = Boolean(el.querySelector?.('.effect-control[data-status-id], .effect-control'));
+			const hasNestedControl = Boolean(
+				el.querySelector?.(
+					'.effect-control[data-status-id], .effect-control, [data-status-id], [data-effect-id], [data-effect-uuid]',
+				),
+			);
 			if (hasNestedControl) el.classList.add('effect-control', 'bases-effect-proxy');
 		}
 	}
 
-	return candidates.filter((el) => {
-		if (el.classList.contains('effect-control')) return true;
-		if (el.classList.contains('effect-group')) return true;
-		if (el.querySelector?.('[data-status-id], .effect-control, img')) return true;
-		return false;
-	});
+	return candidates.filter(isHudStatusElement);
 }
 
 function getLabel(el) {
@@ -88,14 +183,14 @@ function normalizeFilterText(raw = '') {
 }
 
 function getEffectSearchText(el) {
-	const id = el?.dataset?.statusId ?? '';
+	const id = getStatusId(el) || getEffectId(el) || getEffectUuid(el) || '';
 	const label = el?.dataset?.basesLabel ?? getLabel(el) ?? '';
 	return `${id} ${label}`;
 }
 
 function getFilterableStatusElements(host, orderedElements = []) {
 	if (orderedElements.length) return orderedElements;
-	return Array.from(host.querySelectorAll(':scope > [data-status-id]'));
+	return collectHudStatusElements(host);
 }
 
 function applyHudFilter(host, value, orderedElements = []) {
@@ -111,11 +206,19 @@ function applyHudFilter(host, value, orderedElements = []) {
 	}
 }
 
+function syncHudFilterClearState(fieldset, input, clear) {
+	if (!fieldset || !input || !clear) return;
+	const hasValue = Boolean(input.value?.length);
+	clear.hidden = !hasValue;
+}
+
 function ensureHudFilterUI(palette, enabled) {
 	const existing = palette.querySelector(':scope > fieldset.bases-filter');
 	if (!enabled) {
 		existing?.remove();
 		palette.dataset.basesFilterValue = '';
+		const host = getHost(palette);
+		for (const el of collectHudStatusElements(host)) el.classList.remove('bases-hidden');
 		return null;
 	}
 
@@ -124,19 +227,29 @@ function ensureHudFilterUI(palette, enabled) {
 		fieldset = document.createElement('fieldset');
 		fieldset.className = 'bases-filter';
 		fieldset.innerHTML = `
-			<input type="text" class="bases-filter-input" placeholder="${game.i18n.localize('BASES.AssignStatusHUDSorting.Filter.Placeholder')}" />
-			<button type="button" class="bases-filter-clear">${game.i18n.localize('BASES.AssignStatusHUDSorting.Filter.Clear')}</button>
+			<div class="bases-filter-input-wrap">
+				<input type="text" class="bases-filter-input" placeholder="${game.i18n.localize('BASES.AssignStatusHUDSorting.Filter.Placeholder')}" />
+				<button
+					type="button"
+					class="bases-filter-clear"
+					aria-label="${game.i18n.localize('BASES.AssignStatusHUDSorting.Filter.Clear')}"
+					title="${game.i18n.localize('BASES.AssignStatusHUDSorting.Filter.Clear')}"
+					hidden
+				>&times;</button>
+			</div>
 		`;
 		palette.prepend(fieldset);
 	}
+
+	const input = fieldset.querySelector('.bases-filter-input');
+	const clear = fieldset.querySelector('.bases-filter-clear');
+	if (input) input.value = palette.dataset.basesFilterValue ?? input.value ?? '';
+	syncHudFilterClearState(fieldset, input, clear);
 
 	if (fieldset.dataset.basesBound === '1') return fieldset;
 	fieldset.dataset.basesBound = '1';
 
 	const host = getHost(palette);
-	const input = fieldset.querySelector('.bases-filter-input');
-	const clear = fieldset.querySelector('.bases-filter-clear');
-	if (input) input.value = palette.dataset.basesFilterValue ?? '';
 
 	const run = foundry.utils.debounce(() => {
 		const value = input?.value ?? '';
@@ -144,13 +257,49 @@ function ensureHudFilterUI(palette, enabled) {
 		applyHudFilter(host, value);
 	}, 25);
 
-	input?.addEventListener('input', run);
-	clear?.addEventListener('click', () => {
+	input?.addEventListener('input', () => {
+		syncHudFilterClearState(fieldset, input, clear);
+		run();
+	});
+	input?.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			if (input.value) {
+				input.value = '';
+				palette.dataset.basesFilterValue = '';
+				applyHudFilter(host, '');
+				syncHudFilterClearState(fieldset, input, clear);
+			} else {
+				closeStatusPaletteIfOpen();
+			}
+			return;
+		}
+
+		if (event.key !== 'Enter') return;
+		if (!input.value.trim()) return;
+
+		event.preventDefault();
+		event.stopPropagation();
+
+		palette.dataset.basesFilterValue = input.value;
+		applyHudFilter(host, input.value);
+
+		const firstVisible = getFirstVisibleHudEffect(host);
+		if (!firstVisible) return;
+
+		queueFilterRefocusIfFiltering();
+		firstVisible.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+	});
+	clear?.addEventListener('click', (event) => {
+		event.preventDefault();
+		event.stopPropagation();
 		if (!input) return;
 		input.value = '';
 		palette.dataset.basesFilterValue = '';
 		applyHudFilter(host, '');
-		input.focus();
+		syncHudFilterClearState(fieldset, input, clear);
+		input.focus({ preventScroll: true });
 	});
 
 	return fieldset;
@@ -242,7 +391,7 @@ function reorderBySystemEffectForDaggerheart(host, elements) {
 	const unknown = [];
 
 	for (const el of elements) {
-		const id = el.dataset.statusId;
+		const id = getStatusId(el);
 		if (id && systemIndex.has(id)) systemEls.push(el);
 		else if (id && foundryIndex.has(id)) foundryEls.push(el);
 		else unknown.push(el);
@@ -301,7 +450,7 @@ function getSystemAdapter() {
 	return SYSTEM_ADAPTERS[game.system.id] ?? SYSTEM_ADAPTERS.default;
 }
 
-function applyHudGridSettings({ mode, cols } = {}) {
+function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 	const root = document.documentElement;
 	const adapter = getSystemAdapter();
 
@@ -309,7 +458,10 @@ function applyHudGridSettings({ mode, cols } = {}) {
 	cols ??= Number(game.settings.get(Constants.MODULE_ID, 'hudColumns')) || 3;
 	const filterEnabled = game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled');
 
-	const statusLength = CONFIG.statusEffects.filter((s) => s.hud !== false).length;
+	if (!Number.isInteger(statusLength)) {
+		const openPalette = findStatusPalette(document.querySelector('#token-hud'));
+		statusLength = openPalette ? collectStatusElements(openPalette).length : CONFIG.statusEffects.filter((s) => s.hud !== false).length;
+	}
 	const rows = Math.ceil(statusLength / cols) + (filterEnabled ? 1 : 0);
 
 	// columns are always defined
@@ -370,31 +522,44 @@ function getSortedStatusIds() {
 }
 
 function rebuildAndApply(palette) {
-	const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
-	const filterEnabled = game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled');
-	const tokenHud = document.querySelector('#token-hud');
-	const adapter = getSystemAdapter();
-	if (tokenHud) {
-		tokenHud.classList.toggle('bases-hud-enabled', enabled);
-		markHudSystemClass(tokenHud);
-	}
-
-	if (!enabled) return;
-
 	const host = getHost(palette);
-	const layout = applyHudGridSettings();
-	relaxHudBounds(palette);
-	adapter.syncLayoutVars(palette, layout);
-	const filterFieldset = ensureHudFilterUI(palette, filterEnabled);
-	const elements = collectStatusElements(palette);
-	if (!elements.length) return;
+	if (!host) return;
+	if (host.dataset.basesReconciling === '1') return;
+	host.dataset.basesReconciling = '1';
+	host.dataset.basesSkipObserver = '1';
 
-	const orderedIds = getSortedStatusIds();
-	const ordered = adapter.reorderStatuses(host, elements) ?? reorderStatusElementsInRuns(host, elements, orderedIds);
-	for (const el of ordered) decorateStatusElement(el);
-	const filterValue = filterFieldset?.querySelector('.bases-filter-input')?.value ?? palette.dataset.basesFilterValue ?? '';
-	applyHudFilter(host, filterEnabled ? filterValue : '', ordered);
-	refreshHudBounds(palette);
+	try {
+		const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
+		const filterEnabled = game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled');
+		const tokenHud = document.querySelector('#token-hud');
+		const adapter = getSystemAdapter();
+		if (tokenHud) {
+			tokenHud.classList.toggle('bases-hud-enabled', enabled);
+			markHudSystemClass(tokenHud);
+		}
+
+		if (!enabled) return;
+
+		const elements = collectStatusElements(palette);
+		const layout = applyHudGridSettings({ statusLength: elements.length });
+		relaxHudBounds(palette);
+		adapter.syncLayoutVars(palette, layout);
+		const filterFieldset = ensureHudFilterUI(palette, filterEnabled);
+		if (!elements.length) return;
+
+		const orderedIds = getSortedStatusIds();
+		const ordered = adapter.reorderStatuses(host, elements) ?? reorderStatusElementsInRuns(host, elements, orderedIds);
+		for (const el of ordered) decorateStatusElement(el);
+		const filterValue = filterFieldset?.querySelector('.bases-filter-input')?.value ?? palette.dataset.basesFilterValue ?? '';
+		applyHudFilter(host, filterEnabled ? filterValue : '', ordered);
+		refreshHudBounds(palette);
+	} finally {
+		delete host.dataset.basesReconciling;
+		setTimeout(() => {
+			if (!host?.isConnected) return;
+			delete host.dataset.basesSkipObserver;
+		}, 0);
+	}
 }
 
 function sortStatusElements(elements, orderedIds) {
@@ -403,7 +568,7 @@ function sortStatusElements(elements, orderedIds) {
 	const unknown = [];
 
 	for (const el of elements) {
-		const id = el.dataset.statusId;
+		const id = getStatusId(el);
 		const idx = id ? orderedIndex.get(id) : undefined;
 		if (Number.isInteger(idx)) withKnownOrder.push({ el, idx });
 		else unknown.push(el);
@@ -456,9 +621,18 @@ function reorderStatusElementsInRuns(host, allStatusElements, orderedIds) {
 
 function upgradeImageStatusElement(img, text) {
 	if (img.tagName !== 'IMG') return img;
+	const isStatusEffect = Boolean(img.dataset.statusId);
 
 	const existingWrapper = img.parentElement?.classList?.contains('bases-effect-control') ? img.parentElement : null;
 	if (existingWrapper) {
+		existingWrapper.classList.add('effect-control', 'bases-effect-control');
+		if (isStatusEffect) {
+			if (!existingWrapper.dataset.action && img.dataset.action) existingWrapper.dataset.action = img.dataset.action;
+			if (!existingWrapper.dataset.statusId && img.dataset.statusId) existingWrapper.dataset.statusId = img.dataset.statusId;
+		} else {
+			delete existingWrapper.dataset.action;
+			delete existingWrapper.dataset.statusId;
+		}
 		let p = existingWrapper.querySelector(':scope > p.bases-label');
 		if (!p) {
 			p = document.createElement('p');
@@ -471,10 +645,20 @@ function upgradeImageStatusElement(img, text) {
 
 	const wrapper = document.createElement('div');
 	wrapper.classList.add('effect-control', 'bases-effect-control');
-	for (const cls of img.classList) wrapper.classList.add(cls);
+	for (const cls of img.classList) {
+		if (!isStatusEffect && cls === 'effect-control') continue;
+		wrapper.classList.add(cls);
+	}
 
 	for (const [key, value] of Object.entries(img.dataset)) {
-		wrapper.dataset[key] = value;
+		if (!(key in wrapper.dataset)) wrapper.dataset[key] = value;
+	}
+	if (isStatusEffect) {
+		wrapper.dataset.action ??= img.dataset.action ?? 'effect';
+		if (img.dataset.statusId) wrapper.dataset.statusId ??= img.dataset.statusId;
+	} else {
+		delete wrapper.dataset.action;
+		delete wrapper.dataset.statusId;
 	}
 	const title = img.getAttribute('title');
 	const ariaLabel = img.getAttribute('aria-label');
@@ -485,11 +669,15 @@ function upgradeImageStatusElement(img, text) {
 	p.classList.add('bases-label');
 	p.textContent = text;
 
-	img.classList.remove('effect-control', 'active', 'overlay', 'effect-control-container');
-	delete img.dataset.action;
-	delete img.dataset.statusId;
-	delete img.dataset.tooltipText;
-	delete img.dataset.tooltip;
+	if (isStatusEffect) {
+		img.classList.remove('effect-control', 'active', 'overlay', 'effect-control-container');
+		delete img.dataset.action;
+		delete img.dataset.statusId;
+		delete img.dataset.tooltipText;
+		delete img.dataset.tooltip;
+	} else {
+		img.classList.remove('overlay', 'effect-control-container');
+	}
 
 	img.parentElement?.insertBefore(wrapper, img);
 	wrapper.append(img, p);
@@ -517,12 +705,37 @@ function decorateStatusElement(element) {
 	p.textContent = text;
 }
 
-function onDnd5eTokenHudClick(event) {
-	const target = event.target?.closest?.('.effect-control');
+function onTokenHudClick(event) {
+	const target = event.target?.closest?.('.effect-control, .bases-effect-control, .bases-effect-proxy');
 	if (!target?.classList?.contains('effect-control')) return;
+	queueFilterRefocusIfFiltering();
 
-	const id = target.dataset?.statusId;
-	if (!id) return;
+	const id = getStatusId(target);
+	if (!id && (target.classList.contains('bases-effect-control') || target.classList.contains('bases-effect-proxy'))) {
+		const icon = target.querySelector(
+			':scope > .effect-control, :scope > [data-status-id], :scope > [data-effect-id], :scope > [data-effect-uuid], :scope > img.effect-control, :scope > img',
+		);
+		if (icon && event.target !== icon) {
+			event.preventDefault();
+			event.stopPropagation();
+			icon.dispatchEvent(
+				new MouseEvent(event.type, {
+					bubbles: true,
+					cancelable: true,
+					composed: true,
+					button: event.button,
+					buttons: event.buttons,
+					ctrlKey: event.ctrlKey,
+					shiftKey: event.shiftKey,
+					altKey: event.altKey,
+					metaKey: event.metaKey,
+				}),
+			);
+		}
+		return;
+	}
+
+	if (game.system.id !== 'dnd5e') return;
 	if (id !== 'exhaustion' && id !== 'concentrating') return;
 
 	const actor = canvas?.hud?.token?.object?.actor;
@@ -534,13 +747,32 @@ function onDnd5eTokenHudClick(event) {
 	else dnd5e.documents.ActiveEffect5e._manageConcentration(event, actor);
 }
 
-function bindDnd5eHudHandlers(html) {
-	if (game.system.id !== 'dnd5e') return;
-	if (html.dataset.basesDnd5eHudBound === '1') return;
-	html.dataset.basesDnd5eHudBound = '1';
+function bindHudHandlers(html) {
+	if (html.dataset.basesHudBound === '1') return;
+	html.dataset.basesHudBound = '1';
 
-	html.addEventListener('click', onDnd5eTokenHudClick, { capture: true });
-	html.addEventListener('contextmenu', onDnd5eTokenHudClick, { capture: true });
+	html.addEventListener('click', onTokenHudClick, { capture: true });
+	html.addEventListener('contextmenu', onTokenHudClick, { capture: true });
+	html.addEventListener('click', onClickStatusPaletteToggle, { capture: true });
+}
+
+function ensureHudMutationObserver(palette) {
+	const host = getHost(palette);
+	if (!host) return;
+	if (hudObservedHost === host && hudMutationObserver) return;
+
+	hudMutationObserver?.disconnect();
+	hudObservedHost = host;
+	const reconcile = foundry.utils.debounce(() => {
+		if (!palette?.isConnected || !host?.isConnected) return;
+		rebuildAndApply(palette);
+	}, 35);
+	hudMutationObserver = new MutationObserver((mutations) => {
+		if (host.dataset.basesReconciling === '1' || host.dataset.basesSkipObserver === '1') return;
+		if (!mutations.some((m) => m.type === 'childList')) return;
+		reconcile();
+	});
+	hudMutationObserver.observe(host, { childList: true, subtree: true });
 }
 
 function updateOpenTokenHUDIfAny({ force = false } = {}) {
@@ -550,16 +782,21 @@ function updateOpenTokenHUDIfAny({ force = false } = {}) {
 	const palette = findStatusPalette(hudRoot);
 	if (!palette) return;
 
-	if (force) palette.dataset.basesBuilt = '0';
+	if (force) {
+		const host = getHost(palette);
+		if (host?.dataset) {
+			delete host.dataset.basesReconciling;
+			delete host.dataset.basesSkipObserver;
+		}
+	}
 
-	// Re-run if enabled
 	if (!game.settings.get(Constants.MODULE_ID, 'hudEnabled')) {
 		hudRoot.classList.remove('bases-hud-enabled');
 		return;
 	}
 
-	palette.dataset.basesBuilt = '1';
 	rebuildAndApply(palette);
+	ensureHudMutationObserver(palette);
 }
 
 export function statusesApplySettings() {
@@ -642,16 +879,21 @@ function statusesRenderTokenHUDHook(app, html) {
 	const hudRoot = html.querySelector('#token-hud') ?? html;
 	hudRoot.classList.toggle('bases-hud-enabled', enabled);
 	markHudSystemClass(hudRoot);
-	bindDnd5eHudHandlers(html);
+	bindHudHandlers(html);
 
 	if (!enabled) return;
 
 	const palette = findStatusPalette(html);
 	if (!palette) return;
 
-	// Build once per HUD instance
-	if (palette.dataset.basesBuilt === '1') return;
-	palette.dataset.basesBuilt = '1';
-
 	rebuildAndApply(palette);
+	ensureHudMutationObserver(palette);
+
+	const filterEnabled = game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled');
+	if (filterEnabled && pendingFilterRefocusUntil > Date.now()) {
+		pendingFilterRefocusUntil = 0;
+		setTimeout(() => {
+			focusFilterInput(palette);
+		}, 30);
+	}
 }

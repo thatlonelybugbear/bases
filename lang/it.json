@@ -16,6 +16,12 @@
 			"NumberColumns": {
 				"Name": "Numero di colonne",
 				"Hint": "Dividi gli effetti di stato dell'HUD in questo numero di colonne"
+			},
+			"Filter": {
+				"Name": "Abilita filtro effetti",
+				"Hint": "Mostra un campo di ricerca sopra gli effetti di stato per filtrare per nome o ID stato",
+				"Placeholder": "Filtra effetti...",
+				"Clear": "Pulisci"
 			}
 		},
 		"IncompatibleSystemError": "Bugbear's Assign Status Effects Sorter non è compatibile con il tuo sistema e le modifiche all'HUD degli effetti di stato sono state disabilitate. Si consiglia di disattivare il modulo!"
