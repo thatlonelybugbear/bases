@@ -355,17 +355,14 @@ function ensureHudFilterUI(palette, enabled) {
 
 function relaxHudBounds(palette) {
 	const hudRoot = document.querySelector('#token-hud');
-	const hudContainer = document.querySelector('#hud');
-	const targets = [hudRoot, hudRoot?.querySelector('.col.right'), hudRoot?.querySelector('.col.left'), palette, palette?.parentElement, palette?.closest('.palette')].filter(Boolean);
+	if (hudRoot) {
+		hudRoot.style.overflow = 'visible';
+	}
+	const targets = [palette, palette?.parentElement, palette?.closest('.palette')].filter(Boolean);
 	for (const el of targets) {
 		el.style.maxHeight = 'none';
 		el.style.height = 'auto';
 		el.style.overflow = 'visible';
-	}
-	if (hudContainer) {
-		hudContainer.style.maxHeight = 'none';
-		hudContainer.style.height = 'auto';
-		hudContainer.style.overflow = 'visible';
 	}
 
 	// Some systems constrain intermediate wrappers; uncap every ancestor up to HUD root.
@@ -377,20 +374,12 @@ function relaxHudBounds(palette) {
 		current = current.parentElement;
 	}
 	if (hudRoot) {
-		hudRoot.style.maxHeight = 'none';
-		hudRoot.style.height = 'auto';
 		hudRoot.style.overflow = 'visible';
 	}
 }
 
 function enforceHudContentHeight(palette) {
-	const hudRoot = document.querySelector('#token-hud');
-	if (!hudRoot || !palette) return;
-	const needed = Math.max(hudRoot.scrollHeight, palette.scrollHeight) + 8;
-	if (Number.isFinite(needed) && needed > 0) {
-		hudRoot.style.height = `${needed}px`;
-		hudRoot.style.maxHeight = 'none';
-	}
+	if (!palette) return;
 }
 
 function refreshHudBounds(palette) {

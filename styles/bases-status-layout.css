@@ -10,17 +10,22 @@
 	grid-template-columns: var(--bases-grid-template-columns, none);
 }
 
-#hud,
 #token-hud.bases-hud-enabled,
 #token-hud.bases-hud-enabled .window-content,
 #token-hud.bases-hud-enabled .hud,
-#token-hud.bases-hud-enabled .col,
+#token-hud.bases-hud-enabled .palette,
+#token-hud.bases-hud-enabled .palette.status-effects,
+#token-hud.bases-hud-enabled .palette.status-effects.active {
+	overflow: visible !important;
+}
+
+#token-hud.bases-hud-enabled .window-content,
+#token-hud.bases-hud-enabled .hud,
 #token-hud.bases-hud-enabled .palette,
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
 	height: auto !important;
 	max-height: none !important;
-	overflow: visible !important;
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control {

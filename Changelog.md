@@ -1,3 +1,7 @@
+## v13.351.5.3 - 2026-03-18
+
+- Fix for attribute bar 1 being misplaced!
+
 ## v13.351.5.2 - 2026-03-06
 
 - Ported Bugbear Mechanics 5e's Foundry `SearchFilter`-based Status HUD filtering flow into BASES, including clean-query normalization and bound filter lifecycle handling.
