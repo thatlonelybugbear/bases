@@ -1,0 +1,29 @@
+{
+	"BASES": {
+		"AssignStatusHUDSorting": {
+			"Switch": {
+				"Name": "Włącz sortowanie według stanu w HUD",
+				"Hint": "Po włączeniu tej opcji wyświetlane będą również etykiety efektów stanu i nastąpi sortowanie według ustalonego porządku"
+			},
+			"SortingType": {
+				"Name": "Sortowanie według efektów stanu",
+				"Hint": "Wypełnij po wierszach (od lewej do prawej) lub po kolumnach (od góry do dołu)",
+				"Choices": {
+					"Rows": "Wiersze",
+					"Columns": "Kolumny"
+				}
+			},
+			"NumberColumns": {
+				"Name": "Liczba kolumn",
+				"Hint": "Podziel efekty stanu HUD na tę liczbę kolumn"
+			},
+			"Filter": {
+				"Name": "Włącz filtr stanu",
+				"Hint": "Wyświetl pole wyszukiwania nad efektami stanu, aby filtrować wyniki według nazwy lub id stanu",
+				"Placeholder": "Filtry efektów...",
+				"Clear": "Wyczyść"
+			}
+		},
+		"IncompatibleSystemError": "Moduł Bugbear's Assign Status Effects Sorter nie jest zgodny z Twoim systemem, dlatego zmiany w interfejsie HUD funkcji przypisywania efektów stanu zostały wyłączone. Zaleca się wyłączenie tego modułu!"
+	}
+}
