@@ -13,6 +13,7 @@
 #token-hud.bases-hud-enabled,
 #token-hud.bases-hud-enabled .window-content,
 #token-hud.bases-hud-enabled .hud,
+#token-hud.bases-hud-enabled .palette,
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
 	overflow: visible !important;
@@ -20,6 +21,7 @@
 
 #token-hud.bases-hud-enabled .window-content,
 #token-hud.bases-hud-enabled .hud,
+#token-hud.bases-hud-enabled .palette,
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
 	height: auto !important;
