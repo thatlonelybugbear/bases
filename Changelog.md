@@ -1,3 +1,7 @@
+## v13.351.5.5 - 2026-03-31
+
+- Narrorer css selector
+
 ## v13.351.5.4 - 2026-03-27
 
 - Added Polish translation by [Lioheart](<https://github.com/Lioheart>) 🤗
