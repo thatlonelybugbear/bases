@@ -79,6 +79,12 @@
 	opacity: 1;
 }
 
+#token-hud.bases-hud-enabled .status-effects .effect-control.active,
+#token-hud.bases-hud-enabled .status-effects .bases-effect-control.active {
+	border-color: var(--color-border-highlight, var(--color-warm-1));
+	box-shadow: 0 0 4px var(--color-shadow-primary, rgb(255 100 0 / 50%));
+}
+
 #token-hud.bases-hud-enabled .status-effects .effect-control > p.bases-label {
 	margin: 0;
 	font-size: var(--font-size-13);

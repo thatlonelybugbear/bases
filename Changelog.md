@@ -1,3 +1,7 @@
+## v14.363.1.1 - 2026-05-30
+
+- Fix for selected effects not being visibly marked.
+
 ## v14.363.1 - 2026-05-30
 
 - Reworked CSS when the Status Effect Sorter is enabled, to match the Foundry UI layout more closely.
