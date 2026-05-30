@@ -8,6 +8,11 @@
 	grid-auto-flow: var(--bases-grid-auto-flow, row);
 	grid-template-rows: var(--bases-grid-template-rows, none);
 	grid-template-columns: var(--bases-grid-template-columns, none);
+	gap: 3px;
+	justify-content: start;
+	text-align: left;
+	font-size: var(--font-size-13);
+	color: var(--control-icon-color);
 }
 
 #token-hud.bases-hud-enabled,
@@ -27,15 +32,19 @@
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	justify-content: flex-start;
-	gap: 6px;
+	gap: 4px;
 	width: auto;
+	height: auto;
+	min-height: 0;
 	min-width: 0;
 	overflow: visible;
-	justify-self: stretch;
-	text-align: left;
+	opacity: 1;
+	padding: 3px;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	white-space: nowrap;
 }
 
 #token-hud.bases-hud-enabled .status-effects > * {
@@ -53,15 +62,27 @@
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control > img {
-	flex: 0 0 var(--effect-size);
-	width: var(--effect-size);
-	height: var(--effect-size);
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+	min-width: 16px;
+	min-height: 16px;
+	max-width: 16px;
+	max-height: 16px;
 	object-fit: contain;
+	opacity: 0.7;
+	filter: var(--hud-icon-filter, none);
+}
+
+#token-hud.bases-hud-enabled .status-effects .effect-control:hover > img,
+#token-hud.bases-hud-enabled .status-effects .effect-control.active > img {
+	opacity: 1;
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control > p.bases-label {
-	margin-left: 5px;
-	font-size: x-large;
+	margin: 0;
+	font-size: var(--font-size-13);
+	line-height: 1;
 	flex: 1 1 auto;
 	min-width: 0;
 	text-align: left;

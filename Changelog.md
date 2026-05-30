@@ -1,3 +1,8 @@
+## v14.363.1 - 2026-05-30
+
+- Reworked CSS when the Status Effect Sorter is enabled, to match the Foundry UI layout more closely.
+- Verified compatibility with Foundry VTT 14.363.
+
 ## v13.351.5.6 - 2026-03-31
 
 - Narrorer css selector
