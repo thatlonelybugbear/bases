@@ -225,6 +225,23 @@ function getFilterableStatusElements(host, orderedElements = []) {
 	return collectHudStatusElements(host);
 }
 
+function getStatusEffectConfigs() {
+	const effects = CONFIG.statusEffects;
+	if (!effects) return [];
+	if (typeof foundry?.utils?.iterateValues === 'function') return Array.from(foundry.utils.iterateValues(effects));
+	if (Array.isArray(effects)) return effects;
+	return Object.values(effects);
+}
+
+function getHudEnabledStatusConfigs(actorType = undefined) {
+	const statuses = [];
+	for (const status of getStatusEffectConfigs()) {
+		if ((status?.hud === false) || (status?.hud?.actorTypes?.includes(actorType) === false)) continue;
+		statuses.push(status);
+	}
+	return statuses;
+}
+
 function applyHudFilter(host, value, orderedElements = []) {
 	if (!host) return;
 	const query = normalizeFilterText(value);
@@ -416,7 +433,7 @@ function reorderBySystemEffectForDaggerheart(host, elements) {
 	const mode = game.settings.get(Constants.MODULE_ID, 'hudFlowMode');
 	const cols = Number(game.settings.get(Constants.MODULE_ID, 'hudColumns')) || 3;
 
-	const statusCfg = CONFIG.statusEffects.filter((s) => s.hud !== false);
+	const statusCfg = getHudEnabledStatusConfigs();
 	const systemIds = statusCfg.filter((s) => s.systemEffect).map((s) => s.id).filter(Boolean);
 	const foundryIds = statusCfg.filter((s) => !s.systemEffect).map((s) => s.id).filter(Boolean);
 
@@ -497,7 +514,7 @@ function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 
 	if (!Number.isInteger(statusLength)) {
 		const openPalette = findStatusPalette(document.querySelector('#token-hud'));
-		statusLength = openPalette ? collectStatusElements(openPalette).length : CONFIG.statusEffects.filter((s) => s.hud !== false).length;
+		statusLength = openPalette ? collectStatusElements(openPalette).length : getHudEnabledStatusConfigs().length;
 	}
 	const rows = Math.ceil(statusLength / cols) + (filterEnabled ? 1 : 0);
 
@@ -548,8 +565,7 @@ function getSortedStatusIds() {
 	if (globalThis.bases.sortedStatusesIndex) return globalThis.bases.sortedStatusesIndex;
 
 	// Build once
-	const ids = CONFIG.statusEffects
-		.filter((s) => s.hud !== false)
+	const ids = getHudEnabledStatusConfigs()
 		.sort(compareStatusKeys)
 		.map((s) => s.id)
 		.filter(Boolean);
