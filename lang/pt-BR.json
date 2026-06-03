@@ -17,6 +17,10 @@
 				"Name": "Número de Colunas",
 				"Hint": "Divida os efeitos de status da HUD nesse número de colunas."
 			},
+			"Scale": {
+				"Name": "Escala da HUD",
+				"Hint": "Define o tamanho fixo da HUD Assign Status Effects."
+			},
 			"Filter": {
 				"Name": "Ativar filtro de status",
 				"Hint": "Mostra um campo de busca acima dos efeitos de status para filtrar por nome ou ID de status.",

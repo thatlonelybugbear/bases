@@ -17,6 +17,10 @@
 				"Name": "Liczba kolumn",
 				"Hint": "Podziel efekty stanu HUD na tę liczbę kolumn"
 			},
+			"Scale": {
+				"Name": "Skala HUD",
+				"Hint": "Ustaw staly rozmiar HUD Assign Status Effects."
+			},
 			"Filter": {
 				"Name": "Włącz filtr stanu",
 				"Hint": "Wyświetl pole wyszukiwania nad efektami stanu, aby filtrować wyniki według nazwy lub id stanu",

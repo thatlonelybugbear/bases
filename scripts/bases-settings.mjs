@@ -36,6 +36,21 @@ export function registerSettings() {
 		onChange: statusesApplySettings,
 	});
 
+	game.settings.register(Constants.MODULE_ID, 'hudScale', {
+		name: 'BASES.AssignStatusHUDSorting.Scale.Name',
+		hint: 'BASES.AssignStatusHUDSorting.Scale.Hint',
+		scope: 'user',
+		config: true,
+		type: new foundry.data.fields.NumberField({
+			required: true,
+			min: 30,
+			max: 120,
+			step: 5,
+			initial: 100,
+		}),
+		onChange: statusesApplySettings,
+	});
+
 	game.settings.register(Constants.MODULE_ID, 'hudFilterEnabled', {
 		name: 'BASES.AssignStatusHUDSorting.Filter.Name',
 		hint: 'BASES.AssignStatusHUDSorting.Filter.Hint',

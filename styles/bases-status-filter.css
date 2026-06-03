@@ -1,10 +1,12 @@
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter {
-	grid-column: 1 / -1;
+	grid-column: 1 / span var(--bases-grid-column-count, 1);
+	grid-row: 1;
 	display: flex;
-	gap: 3px;
+	gap: var(--bases-control-gap, 3px);
 	align-items: center;
+	width: 100%;
 	margin: 0;
-	padding: 3px;
+	padding: var(--bases-control-padding, 3px);
 	border: 0;
 }
 
@@ -15,8 +17,8 @@
 
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter input[type='text'] {
 	width: 100%;
-	font-size: var(--font-size-13);
-	padding: 3px 24px 3px 6px;
+	font-size: var(--bases-label-font-size, var(--font-size-13));
+	padding: var(--bases-control-padding, 3px) 24px var(--bases-control-padding, 3px) 6px;
 }
 
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter button.bases-filter-clear {
@@ -24,13 +26,13 @@
 	top: 50%;
 	right: 6px;
 	transform: translateY(-50%);
-	width: 16px;
-	height: 16px;
+	width: var(--bases-icon-size, 16px);
+	height: var(--bases-icon-size, 16px);
 	padding: 0;
 	border: 0;
 	background: transparent;
 	color: inherit;
-	font-size: var(--font-size-13);
+	font-size: var(--bases-label-font-size, var(--font-size-13));
 	line-height: 1;
 	cursor: pointer;
 	opacity: 0.8;
@@ -42,6 +44,6 @@
 
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter button.bases-filter-clearall {
 	flex: 0 0 auto;
-	font-size: var(--font-size-13);
-	padding: 3px 8px;
+	font-size: var(--bases-label-font-size, var(--font-size-13));
+	padding: var(--bases-control-padding, 3px) 8px;
 }
