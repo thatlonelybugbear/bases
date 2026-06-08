@@ -1,47 +1,55 @@
 #token-hud.bases-hud-enabled .status-effects {
-	--effect-size: 48px;
+	--bases-hud-scale: var(--bases-current-hud-scale, 1);
+	--bases-icon-size: calc(16px * var(--bases-hud-scale));
+	--bases-label-font-size: calc(13px * var(--bases-hud-scale));
+	--bases-grid-gap: calc(3px * var(--bases-hud-scale));
+	--bases-control-gap: calc(4px * var(--bases-hud-scale));
+	--bases-control-padding: calc(3px * var(--bases-hud-scale));
+	--bases-filter-control-height: calc(28px * var(--bases-hud-scale));
+	--bases-status-column-min: calc(160px * var(--bases-hud-scale));
+	--bases-daggerheart-status-column-min: calc(200px * var(--bases-hud-scale));
 	display: grid;
 	align-content: start;
 	overflow: visible;
 	max-height: none;
-	height: auto;
+	padding: var(--bases-grid-gap, 3px);
 	grid-auto-flow: var(--bases-grid-auto-flow, row);
 	grid-template-rows: var(--bases-grid-template-rows, none);
 	grid-template-columns: var(--bases-grid-template-columns, none);
-	gap: 3px;
+	gap: var(--bases-grid-gap, 3px);
 	justify-content: start;
 	text-align: left;
-	font-size: var(--font-size-13);
+	font-size: var(--bases-label-font-size, var(--font-size-13));
 	color: var(--control-icon-color);
 }
 
 #token-hud.bases-hud-enabled,
-#token-hud.bases-hud-enabled .window-content,
-#token-hud.bases-hud-enabled .hud,
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
 	overflow: visible !important;
 }
 
-#token-hud.bases-hud-enabled .window-content,
-#token-hud.bases-hud-enabled .hud,
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
-	height: auto !important;
 	max-height: none !important;
+}
+
+#token-hud.bases-hud-enabled .palette.status-effects.active {
+	height: auto !important;
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	justify-content: flex-start;
+	gap: var(--bases-control-gap, 4px);
 	width: auto;
 	height: auto;
 	min-height: 0;
 	min-width: 0;
 	overflow: visible;
 	opacity: 1;
-	padding: 3px;
+	padding: var(--bases-control-padding, 3px);
 	border: 1px solid transparent;
 	border-radius: 3px;
 	white-space: nowrap;
@@ -58,17 +66,17 @@
 }
 
 #token-hud.bases-hud-enabled .status-effects .status-wrapper.effect-control {
-	padding-right: 4px;
+	padding-right: var(--bases-control-padding, 4px);
 }
 
 #token-hud.bases-hud-enabled .status-effects .effect-control > img {
-	flex: 0 0 16px;
-	width: 16px;
-	height: 16px;
-	min-width: 16px;
-	min-height: 16px;
-	max-width: 16px;
-	max-height: 16px;
+	flex: 0 0 var(--bases-icon-size, 16px);
+	width: var(--bases-icon-size, 16px);
+	height: var(--bases-icon-size, 16px);
+	min-width: var(--bases-icon-size, 16px);
+	min-height: var(--bases-icon-size, 16px);
+	max-width: var(--bases-icon-size, 16px);
+	max-height: var(--bases-icon-size, 16px);
 	object-fit: contain;
 	opacity: 0.7;
 	filter: var(--hud-icon-filter, none);
@@ -87,7 +95,7 @@
 
 #token-hud.bases-hud-enabled .status-effects .effect-control > p.bases-label {
 	margin: 0;
-	font-size: var(--font-size-13);
+	font-size: var(--bases-label-font-size, var(--font-size-13));
 	line-height: 1;
 	flex: 1 1 auto;
 	min-width: 0;
