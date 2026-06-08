@@ -11,6 +11,26 @@ let pendingFilterRefocusUntil = 0;
 let pendingFilterRefocusTimer = null;
 const FILTER_FOCUS_RETRY_MS = [0, 30, 90];
 const FILTER_REFOCUS_SETTLE_MS = 120;
+const MIN_USER_HUD_SCALE = 0.3;
+const MAX_USER_HUD_SCALE = 1.2;
+const MIN_EFFECTIVE_HUD_SCALE = 0.5;
+const MAX_EFFECTIVE_HUD_SCALE = 2.5;
+
+function getHudScale(scalePercent) {
+	const percent = Number.isFinite(Number(scalePercent)) ? Number(scalePercent) : Number(game.settings.get(Constants.MODULE_ID, 'hudScale')) || 100;
+	return Math.clamp(percent / 100, MIN_USER_HUD_SCALE, MAX_USER_HUD_SCALE);
+}
+
+function getCanvasZoomScale() {
+	const zoom = Number(canvas?.stage?.scale?.x) || 1;
+	return Math.max(0.1, zoom);
+}
+
+function applyHudScale(scalePercent) {
+	const scale = Math.clamp(getHudScale(scalePercent) / getCanvasZoomScale(), MIN_EFFECTIVE_HUD_SCALE, MAX_EFFECTIVE_HUD_SCALE);
+	document.documentElement.style.setProperty('--bases-current-hud-scale', scale.toFixed(3));
+	return scale;
+}
 
 function markHudSystemClass(hudRoot = document.querySelector('#token-hud')) {
 	if (!hudRoot) return;
@@ -191,6 +211,7 @@ function collectStatusElements(palette) {
 }
 
 function getLabel(el) {
+	const status = getStatusConfig(getStatusId(el));
 	return (
 		el.dataset.basesSourceLabel ||
 		el.dataset.tooltipText ||
@@ -201,6 +222,8 @@ function getLabel(el) {
 		el.querySelector?.('.title')?.textContent?.trim() ||
 		el.querySelector?.('span')?.textContent?.trim() ||
 		el.textContent?.trim() ||
+		status?.name ||
+		status?.label ||
 		''
 	);
 }
@@ -231,6 +254,14 @@ function getStatusEffectConfigs() {
 	if (typeof foundry?.utils?.iterateValues === 'function') return Array.from(foundry.utils.iterateValues(effects));
 	if (Array.isArray(effects)) return effects;
 	return Object.values(effects);
+}
+
+function getStatusConfig(id) {
+	if (!id) return null;
+	const effects = CONFIG.statusEffects;
+	const status = typeof effects?.get === 'function' ? effects.get(id) : effects?.[id];
+	if (status) return status;
+	return getStatusEffectConfigs().find((effect) => effect.id === id) ?? null;
 }
 
 function getHudEnabledStatusConfigs(actorType = undefined) {
@@ -371,27 +402,11 @@ function ensureHudFilterUI(palette, enabled) {
 }
 
 function relaxHudBounds(palette) {
-	const hudRoot = document.querySelector('#token-hud');
-	if (hudRoot) {
-		hudRoot.style.overflow = 'visible';
-	}
-	const targets = [palette, palette?.parentElement, palette?.closest('.palette')].filter(Boolean);
+	const targets = [palette, palette?.closest('.palette')].filter(Boolean);
 	for (const el of targets) {
 		el.style.maxHeight = 'none';
-		el.style.height = 'auto';
+		if (el.matches?.('.palette.status-effects.active')) el.style.height = 'auto';
 		el.style.overflow = 'visible';
-	}
-
-	// Some systems constrain intermediate wrappers; uncap every ancestor up to HUD root.
-	let current = palette?.parentElement;
-	while (current && current !== hudRoot) {
-		current.style.maxHeight = 'none';
-		current.style.height = 'auto';
-		current.style.overflow = 'visible';
-		current = current.parentElement;
-	}
-	if (hudRoot) {
-		hudRoot.style.overflow = 'visible';
 	}
 }
 
@@ -475,7 +490,18 @@ const SYSTEM_ADAPTERS = {
 		shouldEmulateColumns() {
 			return false;
 		},
-		syncLayoutVars() {},
+		syncLayoutVars(palette, { mode, cols, rows } = {}) {
+			if (!palette) return;
+			const normalizedCols = Math.max(1, Number(cols) || 1);
+			palette.style.setProperty('--effect-columns', `${normalizedCols}`);
+			palette.style.setProperty('grid-auto-flow', mode === 'columns' ? 'column' : 'row', 'important');
+			palette.style.setProperty('grid-template-rows', mode === 'columns' ? `repeat(${Math.max(1, Number(rows) || 1)}, auto)` : 'none', 'important');
+			palette.style.setProperty(
+				'grid-template-columns',
+				`repeat(${normalizedCols}, max-content)`,
+				'important',
+			);
+		},
 		reorderStatuses() {
 			return null;
 		},
@@ -492,7 +518,11 @@ const SYSTEM_ADAPTERS = {
 			// Daggerheart CSS can keep column-flow behavior; force row-flow rendering so visual order is stable.
 			palette.style.setProperty('grid-auto-flow', 'row', 'important');
 			palette.style.setProperty('grid-template-rows', 'none', 'important');
-			palette.style.setProperty('grid-template-columns', `repeat(${normalizedCols}, minmax(200px, 1fr))`, 'important');
+			palette.style.setProperty(
+				'grid-template-columns',
+				`repeat(${normalizedCols}, minmax(var(--bases-daggerheart-status-column-min), 1fr))`,
+				'important',
+			);
 		},
 		reorderStatuses(host, elements) {
 			return reorderBySystemEffectForDaggerheart(host, elements);
@@ -507,6 +537,7 @@ function getSystemAdapter() {
 function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 	const root = document.documentElement;
 	const adapter = getSystemAdapter();
+	applyHudScale();
 
 	mode ??= game.settings.get(Constants.MODULE_ID, 'hudFlowMode');
 	cols ??= Number(game.settings.get(Constants.MODULE_ID, 'hudColumns')) || 3;
@@ -519,7 +550,8 @@ function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 	const rows = Math.ceil(statusLength / cols) + (filterEnabled ? 1 : 0);
 
 	// columns are always defined
-	root.style.setProperty('--bases-grid-template-columns', `repeat(${cols}, minmax(160px, 1fr))`);
+	root.style.setProperty('--bases-grid-column-count', String(cols));
+	root.style.setProperty('--bases-grid-template-columns', `repeat(${cols}, minmax(var(--bases-status-column-min), 1fr))`);
 
 	if (mode === 'rows' || adapter.shouldEmulateColumns(mode)) {
 		root.style.setProperty('--bases-grid-auto-flow', 'row');
@@ -529,7 +561,7 @@ function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 		root.style.setProperty('--bases-grid-template-rows', `repeat(${rows}, auto)`);
 	}
 
-	return { mode, cols };
+	return { mode, cols, rows };
 }
 
 function compareStatusKeys(aEl, bEl) {
@@ -892,11 +924,12 @@ function basesReady() {
 		return;
 	}
 
-	globalThis.bases = { info: { version: game.modules.get(Constants.MODULE_ID).version } };
+	globalThis.bases = { ...globalThis.bases, info: { version: game.modules.get(Constants.MODULE_ID).version } };
 	applyHudGridSettings(); // apply saved values
 
 	Hooks.on('renderSettingsConfig', statusesRenderSettingsConfigHook);
 	Hooks.on('renderTokenHUD', statusesRenderTokenHUDHook);
+	Hooks.on('canvasPan', applyHudScale);
 }
 
 
@@ -909,14 +942,17 @@ function statusesRenderSettingsConfigHook(app, html) {
 
 	const modeSel = html.querySelector(`select[name="${Constants.MODULE_ID}.hudFlowMode"]`);
 	const colsPicker = html.querySelector(`range-picker[name="${Constants.MODULE_ID}.hudColumns"]`);
+	const scalePicker = html.querySelector(`range-picker[name="${Constants.MODULE_ID}.hudScale"]`);
 	const filterInput = html.querySelector(`input[name="${Constants.MODULE_ID}.hudFilterEnabled"]`);
 
 	const flowGroup = modeSel?.closest('.form-group');
 	const colsGroup = colsPicker?.closest('.form-group');
+	const scaleGroup = scalePicker?.closest('.form-group');
 
 	const setVisibility = (isOn) => {
 		if (flowGroup) flowGroup.style.display = isOn ? '' : 'none';
 		if (colsGroup) colsGroup.style.display = isOn ? '' : 'none';
+		if (scaleGroup) scaleGroup.style.display = isOn ? '' : 'none';
 	};
 
 	setVisibility(game.settings.get(Constants.MODULE_ID, 'hudEnabled')); //initial
@@ -942,14 +978,25 @@ function statusesRenderSettingsConfigHook(app, html) {
 	const saveCols = foundry.utils.debounce(async () => {
 		if (!enabledInput) return;
 		const cols = Number(colsPicker?.value);
+		if (!Number.isFinite(cols)) return;
 		await setIfChanged('hudColumns', cols);
 	}, 50);
 
 	colsPicker?.addEventListener('input', saveCols);
+	const saveScale = foundry.utils.debounce(async () => {
+		if (!enabledInput) return;
+		const scale = Number(scalePicker?.value);
+		if (!Number.isFinite(scale)) return;
+		applyHudScale(scale);
+		await setIfChanged('hudScale', scale);
+	}, 50);
+
+	scalePicker?.addEventListener('input', saveScale);
 }
 
 function statusesRenderTokenHUDHook(app, html) {
 	const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
+	applyHudScale();
 	const hudRoot = html.querySelector('#token-hud') ?? html;
 	hudRoot.classList.toggle('bases-hud-enabled', enabled);
 	markHudSystemClass(hudRoot);
