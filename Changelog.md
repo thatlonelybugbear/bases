@@ -1,3 +1,7 @@
+## v14.363.2 - 2026-06-08
+
+- HUD scaling based on zoom level and user defined scaling factor, to maintain usability across different screen sizes and resolutions.
+
 ## v14.363.1.1 - 2026-05-30
 
 - Fix for selected effects not being visibly marked.
