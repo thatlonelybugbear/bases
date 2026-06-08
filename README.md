@@ -1,7 +1,7 @@
 # Bugbear's Assign Status Effects Sorter
 A system-agnostic Foundry VTT module that adds sorting and improves visibility in the Assign Status Effects HUD.
 
-- Supported systems (current):
+- Tested on:
   - Crucible
   - Daggerheart
   - DC20
