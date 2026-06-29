@@ -1,3 +1,8 @@
+## v14.364.1 - 2026-06-29
+
+- Potential fix for lag while zooming the canvas with the Status Effects HUD open.
+- Compatibility bump for Foundry v14.364
+
 ## v14.363.2.1 - 2026-06-12
 
 - Updated Polish translation by [Lioheart](<https://github.com/Lioheart>) 🤗
