@@ -1,3 +1,7 @@
+## v14.363.2.1 - 2026-06-12
+
+- Updated Polish translation by [Lioheart](<https://github.com/Lioheart>) 🤗
+
 ## v14.363.2 - 2026-06-08
 
 - HUD scaling based on zoom level and user defined scaling factor, to maintain usability across different screen sizes and resolutions.
