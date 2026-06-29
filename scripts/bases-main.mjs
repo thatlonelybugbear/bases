@@ -7,6 +7,8 @@ Hooks.once('ready', basesReady);
 
 let hudMutationObserver = null;
 let hudObservedHost = null;
+let pendingHudScaleFrame = null;
+let pendingHudScalePercent = undefined;
 let pendingFilterRefocusUntil = 0;
 let pendingFilterRefocusTimer = null;
 const FILTER_FOCUS_RETRY_MS = [0, 30, 90];
@@ -26,10 +28,28 @@ function getCanvasZoomScale() {
 	return Math.max(0.1, zoom);
 }
 
-function applyHudScale(scalePercent) {
+function applyHudScale(scalePercent, hudRoot = document.querySelector('#token-hud')) {
+	if (!hudRoot) return null;
+	if (!game.settings.get(Constants.MODULE_ID, 'hudEnabled')) return null;
+
 	const scale = Math.clamp(getHudScale(scalePercent) / getCanvasZoomScale(), MIN_EFFECTIVE_HUD_SCALE, MAX_EFFECTIVE_HUD_SCALE);
-	document.documentElement.style.setProperty('--bases-current-hud-scale', scale.toFixed(3));
+	const value = scale.toFixed(3);
+	if (hudRoot.dataset.basesHudScaleValue === value) return scale;
+	hudRoot.dataset.basesHudScaleValue = value;
+	hudRoot.style.setProperty('--bases-current-hud-scale', value);
 	return scale;
+}
+
+function scheduleHudScale(scalePercent) {
+	pendingHudScalePercent = scalePercent;
+	if (pendingHudScaleFrame) return;
+
+	pendingHudScaleFrame = requestAnimationFrame(() => {
+		pendingHudScaleFrame = null;
+		const percent = pendingHudScalePercent;
+		pendingHudScalePercent = undefined;
+		applyHudScale(percent);
+	});
 }
 
 function markHudSystemClass(hudRoot = document.querySelector('#token-hud')) {
@@ -608,7 +628,7 @@ function getSortedStatusIds() {
 
 function rebuildAndApply(palette) {
 	const host = getHost(palette);
-	if (!host) return;
+	if (!palette?.isConnected || !host?.isConnected) return;
 	if (host.dataset.basesReconciling === '1') return;
 	host.dataset.basesReconciling = '1';
 	host.dataset.basesSkipObserver = '1';
@@ -672,6 +692,7 @@ function reorderStatusElementsInRuns(host, allStatusElements, orderedIds) {
 	// Systems with wrapped/nested structures fall back to whole-host ordering.
 	if (!childElements.some((el) => statusSet.has(el))) {
 		const ordered = sortStatusElements(allStatusElements, orderedIds);
+		if (allStatusElements.every((el, idx) => el === ordered[idx])) return ordered;
 		const frag = document.createDocumentFragment();
 		for (const el of ordered) frag.appendChild(el);
 		host.appendChild(frag);
@@ -684,10 +705,12 @@ function reorderStatusElementsInRuns(host, allStatusElements, orderedIds) {
 	const flushRun = () => {
 		if (!run.length) return;
 		const sortedRun = sortStatusElements(run, orderedIds);
-		const ref = run[run.length - 1].nextSibling;
-		const frag = document.createDocumentFragment();
-		for (const el of sortedRun) frag.appendChild(el);
-		host.insertBefore(frag, ref);
+		if (!run.every((el, idx) => el === sortedRun[idx])) {
+			const ref = run[run.length - 1].nextSibling;
+			const frag = document.createDocumentFragment();
+			for (const el of sortedRun) frag.appendChild(el);
+			host.insertBefore(frag, ref);
+		}
 		orderedAll.push(...sortedRun);
 		run = [];
 	};
@@ -724,7 +747,7 @@ function upgradeImageStatusElement(img, text) {
 			p.classList.add('bases-label');
 			existingWrapper.appendChild(p);
 		}
-		p.textContent = text;
+		if (p.textContent !== text) p.textContent = text;
 		return existingWrapper;
 	}
 
@@ -776,7 +799,7 @@ function decorateStatusElement(element) {
 
 	const node = element.tagName === 'IMG' ? upgradeImageStatusElement(element, text) : element;
 	// Keep native element shape untouched when possible; add normalized label metadata.
-	node.dataset.basesLabel = text;
+	if (node.dataset.basesLabel !== text) node.dataset.basesLabel = text;
 
 	const hasNativeLabel = Boolean(node.querySelector?.(':scope > .title, :scope > .label'));
 	if (hasNativeLabel) return;
@@ -787,7 +810,7 @@ function decorateStatusElement(element) {
 		p.classList.add('bases-label');
 		node.appendChild(p);
 	}
-	p.textContent = text;
+	if (p.textContent !== text) p.textContent = text;
 }
 
 function findHudStatusInteractionTarget(event) {
@@ -861,21 +884,41 @@ function bindHudHandlers(html) {
 	html.addEventListener('click', onClickStatusPaletteToggle, { capture: true });
 }
 
+function disconnectHudMutationObserver() {
+	hudMutationObserver?.disconnect();
+	hudMutationObserver = null;
+	hudObservedHost = null;
+}
+
+function isRelevantHudMutation(mutation) {
+	if (mutation.type !== 'childList') return false;
+	if (mutation.target === hudObservedHost) return true;
+	const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+	return nodes.some((node) => node instanceof HTMLElement && (isHudStatusElement(node) || node.querySelector?.('[data-status-id], [data-effect-id], [data-effect-uuid], .effect-control, img.effect-control')));
+}
+
 function ensureHudMutationObserver(palette) {
 	const host = getHost(palette);
 	if (!host) return;
 	if (hudObservedHost === host && hudMutationObserver) return;
 
-	hudMutationObserver?.disconnect();
+	disconnectHudMutationObserver();
 	hudObservedHost = host;
 	const reconcile = foundry.utils.debounce(() => {
-		if (!palette?.isConnected || !host?.isConnected) return;
+		if (!palette?.isConnected || !host?.isConnected) {
+			disconnectHudMutationObserver();
+			return;
+		}
 		rebuildAndApply(palette);
 		schedulePendingFilterRefocusAfterSettle();
 	}, 35);
 	hudMutationObserver = new MutationObserver((mutations) => {
+		if (!palette?.isConnected || !host?.isConnected) {
+			disconnectHudMutationObserver();
+			return;
+		}
 		if (host.dataset.basesReconciling === '1' || host.dataset.basesSkipObserver === '1') return;
-		if (!mutations.some((m) => m.type === 'childList')) return;
+		if (!mutations.some(isRelevantHudMutation)) return;
 		reconcile();
 	});
 	hudMutationObserver.observe(host, { childList: true, subtree: true });
@@ -883,10 +926,16 @@ function ensureHudMutationObserver(palette) {
 
 function updateOpenTokenHUDIfAny({ force = false } = {}) {
 	const hudRoot = document.querySelector('#token-hud');
-	if (!hudRoot) return;
+	if (!hudRoot) {
+		disconnectHudMutationObserver();
+		return;
+	}
 
 	const palette = findStatusPalette(hudRoot);
-	if (!palette) return;
+	if (!palette) {
+		disconnectHudMutationObserver();
+		return;
+	}
 
 	if (force) {
 		const host = getHost(palette);
@@ -898,6 +947,7 @@ function updateOpenTokenHUDIfAny({ force = false } = {}) {
 
 	if (!game.settings.get(Constants.MODULE_ID, 'hudEnabled')) {
 		hudRoot.classList.remove('bases-hud-enabled');
+		disconnectHudMutationObserver();
 		return;
 	}
 
@@ -929,7 +979,7 @@ function basesReady() {
 
 	Hooks.on('renderSettingsConfig', statusesRenderSettingsConfigHook);
 	Hooks.on('renderTokenHUD', statusesRenderTokenHUDHook);
-	Hooks.on('canvasPan', applyHudScale);
+	Hooks.on('canvasPan', scheduleHudScale);
 }
 
 
@@ -996,16 +1046,22 @@ function statusesRenderSettingsConfigHook(app, html) {
 
 function statusesRenderTokenHUDHook(app, html) {
 	const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
-	applyHudScale();
 	const hudRoot = html.querySelector('#token-hud') ?? html;
 	hudRoot.classList.toggle('bases-hud-enabled', enabled);
 	markHudSystemClass(hudRoot);
+	applyHudScale(undefined, hudRoot);
 	bindHudHandlers(html);
 
-	if (!enabled) return;
+	if (!enabled) {
+		disconnectHudMutationObserver();
+		return;
+	}
 
 	const palette = findStatusPalette(html);
-	if (!palette) return;
+	if (!palette) {
+		disconnectHudMutationObserver();
+		return;
+	}
 
 	rebuildAndApply(palette);
 	ensureHudMutationObserver(palette);
