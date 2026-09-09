@@ -1,8 +1,8 @@
 ## v14.367.1 - 2026-09-09
 
 - Verified compatibility with Foundry VTT 14.367.
-- Updated D&D 5e 5.3.3 and 6.0.0 status-effect HUD compatibility.
-- Constrained oversized status-effect palettes to the viewport with vertical scrolling.
+- Updated D&D 5e 5.3.3 and 6.0.0 status HUD compatibility.
+- Constrained oversized status HUD palettes to the viewport with vertical scrolling.
 
 ## v14.364.1 - 2026-06-29
 
