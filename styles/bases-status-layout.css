@@ -31,7 +31,8 @@
 
 #token-hud.bases-hud-enabled .palette.status-effects,
 #token-hud.bases-hud-enabled .palette.status-effects.active {
-	max-height: none !important;
+	max-height: var(--bases-status-max-height, calc(100vh - 2rem)) !important;
+	overflow-y: auto !important;
 }
 
 #token-hud.bases-hud-enabled .palette.status-effects.active {

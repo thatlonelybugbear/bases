@@ -432,6 +432,12 @@ function relaxHudBounds(palette) {
 
 function enforceHudContentHeight(palette) {
 	if (!palette) return;
+	const margin = 4;
+	palette.style.translate = '';
+	palette.style.setProperty('--bases-status-max-height', `${Math.max(0, window.innerHeight - margin * 2)}px`);
+	const rect = palette.getBoundingClientRect();
+	const top = Math.min(Math.max(rect.top, margin), window.innerHeight - margin - rect.height);
+	palette.style.translate = `0 ${top - rect.top}px`;
 }
 
 function refreshHudBounds(palette) {
@@ -868,11 +874,12 @@ function onTokenHudClick(event) {
 
 	const actor = canvas?.hud?.token?.object?.actor;
 	if (!actor) return;
-	if (!globalThis.dnd5e?.documents?.ActiveEffect5e) return;
+	const ActiveEffect5e = globalThis.dnd5e?.documents?.ActiveEffect5e;
+	if (!ActiveEffect5e || typeof ActiveEffect5e._manageCondition === 'function') return;
 
 	// Mirror dnd5e's dedicated handlers for special status controls.
-	if (id === 'exhaustion') dnd5e.documents.ActiveEffect5e._manageExhaustion(event, actor);
-	else dnd5e.documents.ActiveEffect5e._manageConcentration(event, actor);
+	if (id === 'exhaustion') ActiveEffect5e._manageExhaustion?.(event, actor);
+	else ActiveEffect5e._manageConcentration?.(event, actor);
 }
 
 function bindHudHandlers(html) {
