@@ -49,6 +49,8 @@ function scheduleHudScale(scalePercent) {
 		const percent = pendingHudScalePercent;
 		pendingHudScalePercent = undefined;
 		applyHudScale(percent);
+		const palette = findStatusPalette(document.querySelector('#token-hud'));
+		if (palette?.classList.contains('active')) refreshHudBounds(palette);
 	});
 }
 
@@ -434,10 +436,27 @@ function enforceHudContentHeight(palette) {
 	if (!palette) return;
 	const margin = 4;
 	palette.style.translate = '';
-	palette.style.setProperty('--bases-status-max-height', `${Math.max(0, window.innerHeight - margin * 2)}px`);
+	palette.style.setProperty('--bases-status-max-height', 'none');
+
+	const naturalRect = palette.getBoundingClientRect();
+	const visualScale = naturalRect.height && palette.offsetHeight ? naturalRect.height / palette.offsetHeight : 1;
+	const viewportHeight = Math.max(0, (window.innerHeight - margin * 2) / visualScale);
+	const statuses = collectStatusElements(palette).filter((el) => !el.classList.contains('bases-hidden'));
+	const defaultRows = Math.ceil(statuses.length / 3);
+	const rowBottoms = new Map();
+	for (const status of statuses) {
+		const top = Math.round(status.offsetTop);
+		rowBottoms.set(top, Math.max(rowBottoms.get(top) ?? 0, status.offsetTop + status.offsetHeight));
+	}
+	const rows = [...rowBottoms].sort(([a], [b]) => a - b);
+	const lastContentBottom = Math.max(0, ...[...palette.children].map((el) => el.offsetTop + el.offsetHeight));
+	const trailingSpace = Math.max(0, palette.scrollHeight - lastContentBottom);
+	const defaultHeight = rows[Math.min(defaultRows, rows.length) - 1]?.[1] + trailingSpace || palette.scrollHeight;
+	palette.style.setProperty('--bases-status-max-height', `${Math.min(viewportHeight, defaultHeight)}px`);
+
 	const rect = palette.getBoundingClientRect();
 	const top = Math.min(Math.max(rect.top, margin), window.innerHeight - margin - rect.height);
-	palette.style.translate = `0 ${top - rect.top}px`;
+	palette.style.translate = `0 ${(top - rect.top) / visualScale}px`;
 }
 
 function refreshHudBounds(palette) {
