@@ -15,8 +15,8 @@ const FILTER_FOCUS_RETRY_MS = [0, 30, 90];
 const FILTER_REFOCUS_SETTLE_MS = 120;
 const MIN_USER_HUD_SCALE = 0.3;
 const MAX_USER_HUD_SCALE = 1.2;
-const MIN_EFFECTIVE_HUD_SCALE = 0.5;
-const MAX_EFFECTIVE_HUD_SCALE = 2.5;
+const MIN_EFFECTIVE_HUD_SCALE = 0.1;
+const MAX_EFFECTIVE_HUD_SCALE = 5;
 
 function getHudScale(scalePercent) {
 	const percent = Number.isFinite(Number(scalePercent)) ? Number(scalePercent) : Number(game.settings.get(Constants.MODULE_ID, 'hudScale')) || 100;
@@ -32,7 +32,12 @@ function applyHudScale(scalePercent, hudRoot = document.querySelector('#token-hu
 	if (!hudRoot) return null;
 	if (!game.settings.get(Constants.MODULE_ID, 'hudEnabled')) return null;
 
-	const scale = Math.clamp(getHudScale(scalePercent) / getCanvasZoomScale(), MIN_EFFECTIVE_HUD_SCALE, MAX_EFFECTIVE_HUD_SCALE);
+	// Core scales the HUD by grid pixels / 100 as well as the core UI scale.
+	const gridSize = Number(canvas?.scene?._source?.grid?.size ?? canvas?.scene?.grid?.size) || 100;
+	const gridScale = gridSize > 0 ? gridSize / 100 : 1;
+	const scale = game.settings.get(Constants.MODULE_ID, 'hudScaleEnabled')
+		? Math.clamp(getHudScale(scalePercent) / getCanvasZoomScale(), MIN_EFFECTIVE_HUD_SCALE, MAX_EFFECTIVE_HUD_SCALE) / gridScale
+		: 1;
 	const value = scale.toFixed(3);
 	if (hudRoot.dataset.basesHudScaleValue === value) return scale;
 	hudRoot.dataset.basesHudScaleValue = value;

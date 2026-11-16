@@ -17,6 +17,10 @@
 				"Name": "Number of columns",
 				"Hint": "Divide the HUD status effects into this number of columns"
 			},
+			"ScaleEnabled": {
+				"Name": "Enable HUD scaling",
+				"Hint": "Apply the HUD scale percentage and compensate for scene zoom and grid pixel size. Disable to use the default HUD size without compensation."
+			},
 			"Scale": {
 				"Name": "HUD scale",
 				"Hint": "Scale the Assign Status Effects HUD as a percentage of its default size"

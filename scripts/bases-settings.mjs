@@ -36,6 +36,16 @@ export function registerSettings() {
 		onChange: statusesApplySettings,
 	});
 
+	game.settings.register(Constants.MODULE_ID, 'hudScaleEnabled', {
+		name: 'BASES.AssignStatusHUDSorting.ScaleEnabled.Name',
+		hint: 'BASES.AssignStatusHUDSorting.ScaleEnabled.Hint',
+		scope: 'user',
+		config: true,
+		type: new foundry.data.fields.BooleanField({ initial: true }),
+		default: true,
+		onChange: statusesApplySettings,
+	});
+
 	game.settings.register(Constants.MODULE_ID, 'hudScale', {
 		name: 'BASES.AssignStatusHUDSorting.Scale.Name',
 		hint: 'BASES.AssignStatusHUDSorting.Scale.Hint',
