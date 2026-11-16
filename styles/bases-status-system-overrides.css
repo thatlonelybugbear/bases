@@ -5,3 +5,30 @@
 	text-align: center;
 	justify-self: stretch;
 }
+
+#token-hud.bases-hud-enabled[data-bases-system='draw-steel'] .palette.status-effects {
+	display: flex;
+	flex-direction: column;
+}
+
+#token-hud.bases-hud-enabled[data-bases-system='draw-steel'] .effect-pane {
+	display: grid;
+	gap: var(--bases-grid-gap);
+}
+
+#token-hud.bases-hud-enabled[data-bases-system='draw-steel'] .effect-group > .title {
+	flex: 1;
+	font-size: var(--bases-label-font-size);
+	line-height: 1;
+	pointer-events: none;
+}
+
+#token-hud.bases-hud-enabled[data-bases-system='draw-steel'] .effect-group > img {
+	order: -1;
+}
+
+#token-hud.bases-hud-enabled[data-bases-system='draw-steel'] .effect-config select {
+	height: var(--bases-filter-control-height);
+	min-height: 0;
+	font-size: var(--bases-label-font-size);
+}

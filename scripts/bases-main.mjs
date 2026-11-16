@@ -218,7 +218,7 @@ function collectStatusElements(palette) {
 		if (!el.dataset.statusId && statusId) el.dataset.statusId = statusId;
 		if (!el.dataset.effectId && effectId) el.dataset.effectId = effectId;
 		if (!el.dataset.effectUuid && effectUuid) el.dataset.effectUuid = effectUuid;
-		if ((statusId || effectId || effectUuid) && !el.dataset.action) el.dataset.action = src?.dataset?.action || 'effect';
+		if ((statusId || effectId || effectUuid) && !el.dataset.action && !el.hasAttribute('disabled')) el.dataset.action = src?.dataset?.action || 'effect';
 		if (!el.dataset.basesSourceLabel) {
 			const sourceLabel = getLabel(src);
 			if (sourceLabel) el.dataset.basesSourceLabel = sourceLabel;
@@ -241,6 +241,7 @@ function getLabel(el) {
 	const status = getStatusConfig(getStatusId(el));
 	return (
 		el.dataset.basesSourceLabel ||
+		el.querySelector?.(':scope > .title')?.textContent?.trim() ||
 		el.dataset.tooltipText ||
 		el.dataset.tooltip ||
 		el.getAttribute('data-tooltip') ||
@@ -450,11 +451,12 @@ function enforceHudContentHeight(palette) {
 	const defaultRows = Math.ceil(statuses.length / 3);
 	const rowBottoms = new Map();
 	for (const status of statuses) {
-		const top = Math.round(status.offsetTop);
-		rowBottoms.set(top, Math.max(rowBottoms.get(top) ?? 0, status.offsetTop + status.offsetHeight));
+		const rect = status.getBoundingClientRect();
+		const top = Math.round((rect.top - naturalRect.top) / visualScale);
+		rowBottoms.set(top, Math.max(rowBottoms.get(top) ?? 0, (rect.bottom - naturalRect.top) / visualScale));
 	}
 	const rows = [...rowBottoms].sort(([a], [b]) => a - b);
-	const lastContentBottom = Math.max(0, ...[...palette.children].map((el) => el.offsetTop + el.offsetHeight));
+	const lastContentBottom = Math.max(0, ...[...palette.children].map((el) => (el.getBoundingClientRect().bottom - naturalRect.top) / visualScale));
 	const trailingSpace = Math.max(0, palette.scrollHeight - lastContentBottom);
 	const defaultHeight = rows[Math.min(defaultRows, rows.length) - 1]?.[1] + trailingSpace || palette.scrollHeight;
 	palette.style.setProperty('--bases-status-max-height', `${Math.min(viewportHeight, defaultHeight)}px`);
@@ -536,6 +538,20 @@ function reorderBySystemEffectForDaggerheart(host, elements) {
 }
 
 const SYSTEM_ADAPTERS = {
+	'draw-steel': {
+		shouldEmulateColumns() {
+			return false;
+		},
+		syncLayoutVars(palette, layout = {}) {
+			const host = getHost(palette);
+			if (host === palette) return;
+			const rows = Math.max(1, layout.rows - (game.settings.get(Constants.MODULE_ID, 'hudFilterEnabled') ? 1 : 0));
+			SYSTEM_ADAPTERS.default.syncLayoutVars(host, { ...layout, rows });
+		},
+		reorderStatuses() {
+			return null;
+		},
+	},
 	default: {
 		shouldEmulateColumns() {
 			return false;
@@ -864,6 +880,7 @@ function findHudStatusInteractionTarget(event) {
 function onTokenHudClick(event) {
 	const target = findHudStatusInteractionTarget(event);
 	if (!target) return;
+	if (target.hasAttribute('disabled')) return;
 	if (event.isTrusted) queueFilterRefocusIfFiltering();
 
 	const id = getStatusId(target);
@@ -998,11 +1015,11 @@ async function setIfChanged(key, value) {
 	await game.settings.set(Constants.MODULE_ID, key, value);
 }
 
-function basesReady() {
-	if (game.system.id === 'draw-steel') {
-		ui.notifications.error(game.i18n.localize('BASES.IncompatibleSystemError'));
-		game.settings.set(Constants.MODULE_ID, 'hudEnabled', false);
-		return;
+async function basesReady() {
+	if (game.system.id === 'draw-steel' && !game.settings.get(Constants.MODULE_ID, 'drawSteelHudMigrated')) {
+		// Earlier versions forced this hidden user setting off for Draw Steel.
+		await setIfChanged('hudEnabled', true);
+		await game.settings.set(Constants.MODULE_ID, 'drawSteelHudMigrated', true);
 	}
 
 	globalThis.bases = { ...globalThis.bases, info: { version: game.modules.get(Constants.MODULE_ID).version } };

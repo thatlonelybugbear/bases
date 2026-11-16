@@ -2,6 +2,13 @@ import Constants from './bases-constants.mjs';
 import { statusesApplySettings } from './bases-main.mjs';
 
 export function registerSettings() {
+	game.settings.register(Constants.MODULE_ID, 'drawSteelHudMigrated', {
+		scope: 'user',
+		config: false,
+		type: new foundry.data.fields.BooleanField({ initial: false }),
+		default: false,
+	});
+
 	game.settings.register(Constants.MODULE_ID, 'hudEnabled', {
 		name: 'BASES.AssignStatusHUDSorting.Switch.Name',
 		hint: 'BASES.AssignStatusHUDSorting.Switch.Hint',
