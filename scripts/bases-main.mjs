@@ -312,6 +312,7 @@ function applyHudFilter(host, value, orderedElements = []) {
 		const match = !tokens.length || tokens.every((t) => haystack.includes(t));
 		el.classList.toggle('bases-hidden', !match);
 	}
+	refreshStatusLabelTooltips(elements);
 }
 
 function syncHudFilterClearState(fieldset, input, clear) {
@@ -457,9 +458,11 @@ function enforceHudContentHeight(palette) {
 	}
 	const rows = [...rowBottoms].sort(([a], [b]) => a - b);
 	const lastContentBottom = Math.max(0, ...[...palette.children].map((el) => (el.getBoundingClientRect().bottom - naturalRect.top) / visualScale));
-	const trailingSpace = Math.max(0, palette.scrollHeight - lastContentBottom);
-	const defaultHeight = rows[Math.min(defaultRows, rows.length) - 1]?.[1] + trailingSpace || palette.scrollHeight;
-	palette.style.setProperty('--bases-status-max-height', `${Math.min(viewportHeight, defaultHeight)}px`);
+	// scrollHeight excludes borders; max-height uses the palette's border box.
+	const naturalHeight = palette.offsetHeight;
+	const trailingSpace = Math.max(0, naturalHeight - lastContentBottom);
+	const defaultHeight = rows[Math.min(defaultRows, rows.length) - 1]?.[1] + trailingSpace || naturalHeight;
+	palette.style.setProperty('--bases-status-max-height', `${Math.min(viewportHeight, Math.ceil(defaultHeight))}px`);
 
 	const rect = palette.getBoundingClientRect();
 	const top = Math.min(Math.max(rect.top, margin), window.innerHeight - margin - rect.height);
@@ -470,6 +473,7 @@ function refreshHudBounds(palette) {
 	requestAnimationFrame(() => {
 		relaxHudBounds(palette);
 		enforceHudContentHeight(palette);
+		refreshStatusLabelTooltips(collectHudStatusElements(getHost(palette)));
 	});
 }
 
@@ -660,14 +664,16 @@ function compareStatusKeys(aEl, bEl) {
 
 function getSortedStatusIds() {
 	globalThis.bases ??= {};
-	if (globalThis.bases.sortedStatusesIndex) return globalThis.bases.sortedStatusesIndex;
+	const statuses = getHudEnabledStatusConfigs();
+	const signature = JSON.stringify(statuses.map((status) => [status.id, status.name ?? status.label ?? '']));
+	if (globalThis.bases.sortedStatusesIndex && globalThis.bases.sortedStatusesIndexSig === signature) return globalThis.bases.sortedStatusesIndex;
 
-	// Build once
-	const ids = getHudEnabledStatusConfigs()
+	const ids = statuses
 		.sort(compareStatusKeys)
 		.map((s) => s.id)
 		.filter(Boolean);
 	globalThis.bases.sortedStatusesIndex = ids;
+	globalThis.bases.sortedStatusesIndexSig = signature;
 
 	return ids;
 }
@@ -844,6 +850,7 @@ function decorateStatusElement(element) {
 	if (!text) return;
 
 	const node = element.tagName === 'IMG' ? upgradeImageStatusElement(element, text) : element;
+	syncDnd5eConditionIcon(node);
 	// Keep native element shape untouched when possible; add normalized label metadata.
 	if (node.dataset.basesLabel !== text) node.dataset.basesLabel = text;
 
@@ -857,6 +864,51 @@ function decorateStatusElement(element) {
 		node.appendChild(p);
 	}
 	if (p.textContent !== text) p.textContent = text;
+}
+
+function syncDnd5eConditionIcon(node) {
+	if (game.system.id !== 'dnd5e') return;
+	const id = getStatusId(node);
+	const actor = canvas?.hud?.token?.object?.actor;
+	const img = node.querySelector(':scope > img');
+	if (!actor || !img || !id) return;
+	const condition = Array.from(actor.effects).find((effect) => effect.system?.hasLevels && effect.system.type === id);
+	const legacyExhaustion = id === 'exhaustion' && Number(actor.system?.attributes?.exhaustion) > 0
+		? Array.from(actor.effects).find((effect) => effect.statuses?.has(id)) : null;
+	const source = condition?.img ?? legacyExhaustion?.img;
+	if (!source && !node.dataset.basesConditionIcon) return;
+	const next = source ?? getStatusConfig(id)?.img;
+	if (next && img.getAttribute('src') !== next) img.setAttribute('src', next);
+	// 5e's native render hides the base image and paints a leveled background.
+	// Keep that styling off the label wrapper and use the actual condition image.
+	img.style.removeProperty('object-position');
+	img.style.removeProperty('background');
+	node.style.removeProperty('object-position');
+	node.style.removeProperty('background');
+	if (source) node.dataset.basesConditionIcon = '1';
+	else delete node.dataset.basesConditionIcon;
+}
+
+function refreshStatusLabelTooltips(elements) {
+	const updates = [];
+	// Complete width reads before any tooltip writes.
+	for (const node of elements) {
+		if (node.classList.contains('bases-hidden') || node.querySelector(':scope > .title, :scope > .label')) continue;
+		const label = node.querySelector(':scope > p.bases-label');
+		if (!label) continue;
+		updates.push({ node, text: label.scrollWidth > label.clientWidth + 1 ? label.textContent.trim() : null });
+	}
+	for (const { node, text } of updates) {
+		if (text !== null) {
+			if (node.dataset.tooltipText !== text && !node.hasAttribute('data-tooltip') && !node.hasAttribute('data-tooltip-text')) {
+				node.dataset.basesLabelTooltip = '1';
+				node.dataset.tooltipText = text;
+			} else if (node.dataset.basesLabelTooltip === '1' && node.dataset.tooltipText !== text) node.dataset.tooltipText = text;
+		} else if (node.dataset.basesLabelTooltip === '1') {
+			delete node.dataset.tooltipText;
+			delete node.dataset.basesLabelTooltip;
+		}
+	}
 }
 
 function findHudStatusInteractionTarget(event) {
