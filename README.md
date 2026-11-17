@@ -9,8 +9,6 @@ A system-agnostic Foundry VTT module that adds sorting and improves visibility i
   - DnD5e
   - Mosh
   - PF2e
-- Known incompatibilities:
-  - Draw Steel (by design, system already provides similar functionality)
 
 [BasesCrucibleFilters.webm](https://github.com/user-attachments/assets/c5e6b5e7-d156-4ff6-a069-d6d9f50ab006)
 
