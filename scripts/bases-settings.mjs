@@ -1,7 +1,25 @@
 import Constants from './bases-constants.mjs';
 import { statusesApplySettings } from './bases-main.mjs';
+import { supportsHudEffectClearing } from './bases-status-clear.mjs';
 
 export function registerSettings() {
+	game.settings.register(Constants.MODULE_ID, 'bm5eHudMigrated', {
+		scope: 'user',
+		config: false,
+		type: new foundry.data.fields.BooleanField({ initial: false }),
+		default: false,
+	});
+
+	game.settings.register(Constants.MODULE_ID, 'hudClearEffectsEnabled', {
+		name: 'BASES.AssignStatusHUDSorting.ClearEffects.Name',
+		hint: 'BASES.AssignStatusHUDSorting.ClearEffects.Hint',
+		scope: 'user',
+		config: supportsHudEffectClearing(game.system.id, game),
+		type: new foundry.data.fields.BooleanField({ initial: false }),
+		default: false,
+		onChange: statusesApplySettings,
+	});
+
 	game.settings.register(Constants.MODULE_ID, 'drawSteelHudMigrated', {
 		scope: 'user',
 		config: false,

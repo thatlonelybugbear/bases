@@ -15,6 +15,10 @@
 	flex: auto;
 }
 
+#token-hud.bases-hud-enabled .status-effects fieldset.bases-filter .bases-filter-input-wrap[hidden] {
+	display: none;
+}
+
 #token-hud.bases-hud-enabled .status-effects fieldset.bases-filter input[type='text'] {
 	width: 100%;
 	height: var(--bases-filter-control-height, auto);

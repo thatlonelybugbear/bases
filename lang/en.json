@@ -25,6 +25,13 @@
 				"Name": "HUD scale",
 				"Hint": "Scale the Assign Status Effects HUD as a percentage of its default size"
 			},
+			"ClearEffects": {
+				"Name": "Show Clear effects button",
+				"Hint": "D&D 5e: remove actor-owned effects with configured statuses and custom effects listed in the HUD, including disabled effects and all stacks. Falling and item-owned effects are not removed. Clearing is not limited by the search filter.",
+				"Button": "Clear effects",
+				"Tooltip": "Clear status-effect copies and levels, plus custom HUD effects, regardless of the search filter. Falling is managed by the system and is not cleared.",
+				"Error": "Could not clear effects. See the console for details."
+			},
 			"Filter": {
 				"Name": "Enable status filter",
 				"Hint": "Show a search field above status effects to filter by name or status id",

@@ -1,5 +1,8 @@
 import Constants from './bases-constants.mjs';
 import { registerSettings } from './bases-settings.mjs';
+import { clearDnd5eHudEffects, supportsHudEffectClearing } from './bases-status-clear.mjs';
+import { migrateBm5eHudPreferences } from './bases-hud-migration.mjs';
+import { canUseBasesHud } from './bases-compatibility.mjs';
 
 Hooks.once('init', registerSettings);
 
@@ -29,6 +32,7 @@ function getCanvasZoomScale() {
 }
 
 function applyHudScale(scalePercent, hudRoot = document.querySelector('#token-hud')) {
+	if (!canUseBasesHud(game)) return null;
 	if (!hudRoot) return null;
 	if (!game.settings.get(Constants.MODULE_ID, 'hudEnabled')) return null;
 
@@ -321,9 +325,54 @@ function syncHudFilterClearState(fieldset, input, clear) {
 	clear.hidden = !hasValue;
 }
 
+function isHudClearEffectsEnabled() {
+	return supportsHudEffectClearing(game.system.id, game) && game.settings.get(Constants.MODULE_ID, 'hudClearEffectsEnabled');
+}
+
+function syncHudClearEffectsButton(palette, fieldset) {
+	let button = fieldset.querySelector('.bases-filter-clearall');
+	if (!isHudClearEffectsEnabled()) {
+		button?.remove();
+		return;
+	}
+	if (button) return;
+	button = document.createElement('button');
+	button.type = 'button';
+	button.className = 'bases-filter-clearall';
+	button.textContent = game.i18n.localize('BASES.AssignStatusHUDSorting.ClearEffects.Button');
+	button.title = game.i18n.localize('BASES.AssignStatusHUDSorting.ClearEffects.Tooltip');
+	fieldset.appendChild(button);
+	button.addEventListener('click', async (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		if (button.disabled || !isHudClearEffectsEnabled()) return;
+		const actor = canvas?.hud?.token?.object?.actor;
+		if (!actor?.isOwner) return;
+		button.disabled = true;
+		try {
+			const customEffects = [];
+			for (const element of collectStatusElements(palette)) {
+				if (getStatusId(element)) continue;
+				const effect = actor.effects.get(getEffectId(element));
+				if (effect) customEffects.push(effect);
+				else if (getEffectUuid(element)) {
+					try { customEffects.push(fromUuidSync(getEffectUuid(element))); }
+					catch { /* Ignore stale references injected by other modules. */ }
+				}
+			}
+			await clearDnd5eHudEffects(actor, getStatusEffectConfigs().map((status) => status.id), customEffects);
+		} catch (error) {
+			console.error('BASES | Failed to clear HUD effects', error);
+			ui.notifications.error(game.i18n.localize('BASES.AssignStatusHUDSorting.ClearEffects.Error'));
+		} finally {
+			button.disabled = false;
+		}
+	});
+}
+
 function ensureHudFilterUI(palette, enabled) {
 	const existing = palette.querySelector(':scope > fieldset.bases-filter');
-	if (!enabled) {
+	if (!enabled && !isHudClearEffectsEnabled()) {
 		if (existing) {
 			existing._basesSearchFilter?.unbind?.();
 			delete existing._basesSearchFilter;
@@ -357,6 +406,12 @@ function ensureHudFilterUI(palette, enabled) {
 	const input = fieldset.querySelector('.bases-filter-input');
 	const clear = fieldset.querySelector('.bases-filter-clear');
 	const host = getHost(palette);
+	fieldset.querySelector('.bases-filter-input-wrap').hidden = !enabled;
+	syncHudClearEffectsButton(palette, fieldset);
+	if (!enabled) {
+		palette.dataset.basesFilterValue = '';
+		for (const el of collectHudStatusElements(host)) el.classList.remove('bases-hidden');
+	}
 	if (input) input.value = palette.dataset.basesFilterValue ?? input.value ?? '';
 	syncHudFilterClearState(fieldset, input, clear);
 	const applyFilterNow = (value = '') => {
@@ -617,7 +672,7 @@ function applyHudGridSettings({ mode, cols, statusLength } = {}) {
 		const openPalette = findStatusPalette(document.querySelector('#token-hud'));
 		statusLength = openPalette ? collectStatusElements(openPalette).length : getHudEnabledStatusConfigs().length;
 	}
-	const rows = Math.ceil(statusLength / cols) + (filterEnabled ? 1 : 0);
+	const rows = Math.ceil(statusLength / cols) + (filterEnabled || isHudClearEffectsEnabled() ? 1 : 0);
 
 	// columns are always defined
 	root.style.setProperty('--bases-grid-column-count', String(cols));
@@ -1056,6 +1111,7 @@ function updateOpenTokenHUDIfAny({ force = false } = {}) {
 }
 
 export function statusesApplySettings() {
+	if (!canUseBasesHud(game)) return;
 	const enabled = game.settings.get(Constants.MODULE_ID, 'hudEnabled');
 	if (enabled) applyHudGridSettings();
 	updateOpenTokenHUDIfAny();
@@ -1068,6 +1124,8 @@ async function setIfChanged(key, value) {
 }
 
 async function basesReady() {
+	if (!canUseBasesHud(game)) return;
+	await migrateBm5eHudPreferences(game);
 	if (game.system.id === 'draw-steel' && !game.settings.get(Constants.MODULE_ID, 'drawSteelHudMigrated')) {
 		// Earlier versions forced this hidden user setting off for Draw Steel.
 		await setIfChanged('hudEnabled', true);
