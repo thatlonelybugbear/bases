@@ -1,3 +1,13 @@
+## v14.370.1 - 2026-11-16
+
+- Added Draw Steel support, including status sorting, filtering, and scaling while keeping its effect duration selector available.
+- Automatically re-enabled BASES for Draw Steel users whose status HUD was disabled by earlier versions.
+- Added an **Enable HUD scaling** setting to turn BASES scaling and zoom compensation on or off.
+- Fixed oversized status icons on scenes with larger grid pixel sizes when HUD scaling is enabled.
+- Improved HUD scale adjustments at very low and high scene zoom levels.
+- Improved viewport sizing for nested status lists and reduced the margin around oversized palettes.
+- Automatically imports each user's saved Bugbear Mechanics 5e status HUD preferences into BASES once, preserving later changes made in BASES.
+
 ## v14.367.1 - 2026-09-09
 
 - Verified compatibility with Foundry VTT 14.367.
